@@ -429,6 +429,91 @@ $('#swReset').addEventListener('click', () => sw.init());
 $('#swGust').addEventListener('click', () => sw.gust());
 toggle('#swWind', on => { sw.par.d = on ? -600 : 0; sw.ui(); });
 
+/* the chips, drawn as chips: packages at real scale, and inside the big modules a die layout with cell rows,
+   memory macros, two metal layers and a copper clock tree. Static art is drawn once per size; the selected chip
+   gets a glow, a light running around its edge, and signals moving along its wires. All units below are millimetres. */
+const LYR = { m2: '176,146,255', m3: '84,196,214', cell: '126,160,142', cu: '227,154,98' };
+const seeded = s => () => { s = (s + 0x6d2b79f5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+function dieData(seed){
+  const r = seeded(seed), M = [{ x: .12, y: .14, w: .28, h: .2 }, { x: .6, y: .62, w: .27, h: .25 }], hit = (x, y, w, h) => M.some(m => x + w > m.x - .015 && x < m.x + m.w + .015 && y + h > m.y - .015 && y < m.y + m.h + .015);
+  const rows = []; for (let y = .08; y + .04 <= .92; y += .04){ const cells = []; let x = .08; while (x < .92){ const w = .012 + Math.floor(r() * 5) * .009; if (x + w <= .92 && !hit(x, y, w, .04) && r() > .14) cells.push([x, w]); x += w + .005; } rows.push([y, cells]); }
+  const sp = () => Math.round((.12 + r() * .76) * 50) / 50, nets = [];
+  while (nets.length < 28){ const n = { sx: sp(), sy: sp(), ex: sp(), ey: sp(), dur: 1.3 + r() * 2.2, ph: r() }; if (Math.abs(n.sx - n.ex) > .1 && Math.abs(n.sy - n.ey) > .1) nets.push(n); }
+  const clock = [], h = (cx, cy, l, d) => { if (d > 2) return; clock.push({ cx, cy, l, d }); for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) h(cx + a * l, cy + b * l, l / 2, d + 1); }; h(.5, .5, .17, 0);
+  return { M, rows, nets, clock };
+}
+const rrect = (c, x, y, w, h, r) => { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); };
+// px: the size of one screen pixel in the current units, so hairlines stay one pixel wide at any scale
+function dieArt(c, D, x, y, s, px){
+  c.save(); c.translate(x, y); c.scale(s, s); const u = px / s;
+  const bg = c.createRadialGradient(.5, .42, 0, .5, .5, .75); bg.addColorStop(0, '#1b1d24'); bg.addColorStop(1, '#0a0b0e'); c.fillStyle = bg; c.fillRect(0, 0, 1, 1);
+  c.strokeStyle = '#3a3e47'; c.lineWidth = u * 1.2; c.strokeRect(.015, .015, .97, .97); c.strokeStyle = '#23262d'; c.strokeRect(.04, .04, .92, .92);
+  const fine = s / px > 70; // cell outlines only when the die is big enough on screen to show them
+  c.fillStyle = `rgba(${LYR.cell},${fine ? .14 : .2})`; c.strokeStyle = `rgba(${LYR.cell},.5)`; c.lineWidth = u * .5;
+  for (const [ry, cells] of D.rows) for (const [cx, cw] of cells){ c.fillRect(cx, ry + .006, cw, .028); if (fine) c.strokeRect(cx, ry + .006, cw, .028); }
+  D.M.forEach((m, i) => { c.save(); c.beginPath(); c.rect(m.x, m.y, m.w, m.h); c.clip(); c.strokeStyle = `rgba(${LYR.m2},.32)`; c.lineWidth = u * 1.1; c.beginPath(); for (let d = -m.h; d < m.w; d += .022){ c.moveTo(m.x + d, m.y + m.h); c.lineTo(m.x + d + m.h, m.y); } c.stroke(); c.restore();
+    c.strokeStyle = `rgba(${LYR.m2},.75)`; c.lineWidth = u; c.strokeRect(m.x, m.y, m.w, m.h);
+    if (fine){ c.fillStyle = 'rgba(160,165,175,.8)'; c.font = `600 ${(.045).toFixed(3)}px ${MONO}`; c.textAlign = 'left'; c.textBaseline = 'top'; c.fillText('SRAM_' + i, m.x + .02, m.y + .02); } });
+  c.lineWidth = u * 1.1; c.lineCap = 'square';
+  c.strokeStyle = `rgba(${LYR.m2},.85)`; c.beginPath(); for (const n of D.nets){ c.moveTo(n.sx, n.sy); c.lineTo(n.sx, n.ey); } c.stroke();
+  c.strokeStyle = `rgba(${LYR.m3},.9)`; c.beginPath(); for (const n of D.nets){ c.moveTo(n.sx, n.ey); c.lineTo(n.ex, n.ey); } c.stroke();
+  c.fillStyle = 'rgba(233,234,236,.9)'; for (const n of D.nets) c.fillRect(n.sx - u * 1.6, n.ey - u * 1.6, u * 3.2, u * 3.2);
+  c.strokeStyle = `rgb(${LYR.cu})`; c.shadowColor = `rgba(${LYR.cu},.7)`; c.shadowBlur = 5; c.lineCap = 'round';
+  for (const b of D.clock){ c.lineWidth = u * [2.2, 1.6, 1.1][b.d]; c.beginPath(); c.moveTo(b.cx - b.l, b.cy); c.lineTo(b.cx + b.l, b.cy); for (const sx of [-1, 1]){ c.moveTo(b.cx + sx * b.l, b.cy - b.l); c.lineTo(b.cx + sx * b.l, b.cy + b.l); } c.stroke(); }
+  c.restore();
+}
+// moving signals: a clock wave from the root of the tree to its leaves, and short streaks running along the wires
+function dieLive(c, D, x, y, s, px, t, a){
+  c.save(); c.translate(x, y); c.scale(s, s); const u = px / s; c.lineCap = 'round';
+  const wave = (t / 1.4) % 1; c.shadowColor = 'rgba(255,217,184,.9)'; c.shadowBlur = 8;
+  for (const b of D.clock){ const k = Math.max(0, 1 - Math.abs(wave * 3.4 - b.d - .2) * 1.4) * a; if (k <= 0) continue; c.strokeStyle = `rgba(255,217,184,${(k * .9).toFixed(3)})`; c.lineWidth = u * [3, 2.2, 1.6][b.d]; c.beginPath(); c.moveTo(b.cx - b.l, b.cy); c.lineTo(b.cx + b.l, b.cy); for (const sx of [-1, 1]){ c.moveTo(b.cx + sx * b.l, b.cy - b.l); c.lineTo(b.cx + sx * b.l, b.cy + b.l); } c.stroke(); }
+  c.strokeStyle = `rgba(255,255,255,${(.95 * a).toFixed(3)})`; c.shadowColor = 'rgba(255,255,255,.8)'; c.shadowBlur = 6; c.lineWidth = u * 1.8; c.beginPath();
+  for (const n of D.nets){ const lv = Math.abs(n.ey - n.sy), lh = Math.abs(n.ex - n.sx), head = ((t / n.dur + n.ph) % 1) * (lv + lh), tail = Math.max(0, head - .05);
+    const at = d => d <= lv ? [n.sx, n.sy + Math.sign(n.ey - n.sy) * d] : [n.sx + Math.sign(n.ex - n.sx) * (d - lv), n.ey];
+    const [tx, ty] = at(tail), [hx, hy] = at(head); c.moveTo(tx, ty); if (tail < lv && head > lv) c.lineTo(n.sx, n.ey); c.lineTo(hx, hy); }
+  c.stroke(); c.restore();
+}
+function chipPart(c, x, y, w, h, px, label){ // a moulded package: memory, PMIC
+  const g = c.createLinearGradient(x, y, x + w, y + h); g.addColorStop(0, '#26282e'); g.addColorStop(1, '#0d0e11'); rrect(c, x, y, w, h, Math.min(w, h) * .06); c.fillStyle = g; c.fill();
+  c.strokeStyle = 'rgba(255,255,255,.14)'; c.lineWidth = px; c.stroke();
+  c.fillStyle = 'rgba(255,255,255,.16)'; c.beginPath(); c.arc(x + w * .12, y + h * .16, Math.min(w, h) * .05, 0, 7); c.fill();
+  if (label && w / px > 40){ c.fillStyle = 'rgba(220,222,228,.42)'; c.font = `600 ${(h * .14).toFixed(3)}px ${MONO}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(label, x + w / 2, y + h * .58); }
+}
+function passives(c, seed, x0, y0, x1, y1, n, px){ const r = seeded(seed); for (let i = 0; i < n; i++){ const x = x0 + r() * (x1 - x0), y = y0 + r() * (y1 - y0), v = r() > .5, w = v ? .6 : 1.1, h = v ? 1.1 : .6;
+  c.fillStyle = r() > .4 ? '#b9875a' : '#2a2c31'; c.fillRect(x, y, w, h); c.fillStyle = '#cfd2d8'; if (v){ c.fillRect(x, y, w, .22); c.fillRect(x, y + h - .22, w, .22); } else { c.fillRect(x, y, .22, h); c.fillRect(x + w - .22, y, .22, h); } } }
+function hole(c, x, y, r){ c.fillStyle = '#c9a24e'; c.beginPath(); c.arc(x, y, r * 1.6, 0, 7); c.fill(); c.fillStyle = '#050607'; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill(); }
+const STM_PINS = (() => { const p = []; for (let s = 0; s < 4; s++) for (let i = 0; i < 16; i++){ const t = 2.25 + i * .5; p.push(s === 0 ? [t - .11, 0, .22, 1.05] : s === 1 ? [10.95, t - .11, 1.05, .22] : s === 2 ? [12 - t - .11, 10.95, .22, 1.05] : [0, 12 - t - .11, 1.05, .22]); } return p; })();
+const ART = [
+  { fw: 12, fh: 12, draw(c, px){ // STM32F405 in an LQFP-64: 10 mm body, 64 gull-wing pins
+    c.fillStyle = '#9ea2ab'; for (const [x, y, w, h] of STM_PINS) c.fillRect(x, y, w, h);
+    const g = c.createLinearGradient(1, 1, 11, 11); g.addColorStop(0, '#2a2c32'); g.addColorStop(1, '#0c0d10'); rrect(c, 1, 1, 10, 10, .35); c.fillStyle = g; c.fill(); c.strokeStyle = 'rgba(255,255,255,.16)'; c.lineWidth = px; c.stroke();
+    rrect(c, 1.5, 1.5, 9, 9, .2); c.strokeStyle = 'rgba(255,255,255,.05)'; c.stroke();
+    c.fillStyle = 'rgba(0,0,0,.6)'; c.beginPath(); c.arc(2.6, 2.6, .5, 0, 7); c.fill(); c.strokeStyle = 'rgba(255,255,255,.12)'; c.stroke();
+    if (10 / px > 50){ c.fillStyle = 'rgba(222,224,230,.6)'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = `700 1.35px ${UI}`; c.fillText('STM32', 6, 5.1); c.font = `600 .95px ${MONO}`; c.fillText('F405RGT6', 6, 6.6); c.font = `500 .7px ${MONO}`; c.fillStyle = 'rgba(222,224,230,.38)'; c.fillText('ARM · 168 MHz', 6, 8.1); } },
+    live(c, px, t, a){ for (let i = 0; i < 64; i++){ const k = Math.max(0, Math.sin(t * 6 + i * 2.39) * Math.sin(t * 2.3 + i * .7)) * a; if (k < .2) continue; const [x, y, w, h] = STM_PINS[i]; c.fillStyle = `rgba(255,236,200,${(k * .95).toFixed(3)})`; c.fillRect(x, y, w, h); } } },
+  { fw: 87, fh: 50, die: dieData(11), draw(c, px){ // Jetson TX2: the module under its thermal plate, SoC, memory and eMMC
+    const g = c.createLinearGradient(0, 0, 87, 50); g.addColorStop(0, '#24262c'); g.addColorStop(1, '#0c0d10'); rrect(c, 0, 0, 87, 50, 2.5); c.fillStyle = g; c.fill(); c.strokeStyle = 'rgba(255,255,255,.2)'; c.lineWidth = px; c.stroke();
+    c.save(); rrect(c, 2, 2, 83, 46, 1.6); c.clip(); c.strokeStyle = 'rgba(255,255,255,.028)'; c.beginPath(); for (let y = 2; y < 48; y += .6){ c.moveTo(2, y); c.lineTo(85, y); } c.stroke(); c.restore();
+    for (const [x, y] of [[4, 4], [83, 4], [4, 46], [83, 46]]) hole(c, x, y, 1.1);
+    rrect(c, 8, 8, 32, 32, 1.2); c.fillStyle = '#121a17'; c.fill(); c.strokeStyle = 'rgba(255,255,255,.12)'; c.stroke(); passives(c, 3, 9, 9, 38.5, 11, 18, px); passives(c, 4, 9, 37, 38.5, 38.8, 14, px);
+    dieArt(c, this.die, 13, 13, 22, px);
+    chipPart(c, 45, 8, 12, 10, px, 'LPDDR4'); chipPart(c, 59, 8, 12, 10, px, 'LPDDR4'); chipPart(c, 45, 20, 12, 10, px, 'LPDDR4'); chipPart(c, 59, 20, 12, 10, px, 'LPDDR4'); chipPart(c, 73, 9, 9, 12, px, 'eMMC'); chipPart(c, 74, 24, 7, 7, px, 'PMIC');
+    passives(c, 5, 44, 31, 82, 33.5, 22, px);
+    c.textAlign = 'left'; c.textBaseline = 'alphabetic'; c.fillStyle = 'rgba(235,235,245,.72)'; c.font = `800 3.2px ${UI}`; c.fillText('JETSON TX2', 45, 41); c.fillStyle = 'rgba(235,235,245,.4)'; c.font = `600 1.9px ${MONO}`; c.fillText('NVIDIA · 256 CUDA CORES', 45, 45); },
+    live(c, px, t, a){ dieLive(c, this.die, 13, 13, 22, px, t, a); } },
+  { fw: 69.6, fh: 45, die: dieData(23), draw(c, px){ // Jetson Orin NX: a SO-DIMM board, gold edge fingers with the key notch
+    const g = c.createLinearGradient(0, 0, 69.6, 45); g.addColorStop(0, '#11302a'); g.addColorStop(1, '#071512'); c.beginPath(); c.moveTo(2, 0); c.lineTo(67.6, 0); c.arcTo(69.6, 0, 69.6, 2, 2); c.lineTo(69.6, 45); c.lineTo(0, 45); c.lineTo(0, 2); c.arcTo(0, 0, 2, 0, 2); c.closePath(); c.fillStyle = g; c.fill(); c.strokeStyle = 'rgba(255,255,255,.18)'; c.lineWidth = px; c.stroke();
+    c.save(); c.beginPath(); c.rect(0, 0, 69.6, 45); c.clip(); c.strokeStyle = 'rgba(80,190,150,.12)'; c.lineWidth = px * .8; const r = seeded(9); c.beginPath(); for (let i = 0; i < 40; i++){ let x = r() * 69.6, y = 3 + r() * 36; c.moveTo(x, y); x += (r() - .5) * 30; c.lineTo(x, y); y += (r() - .5) * 20; c.lineTo(x, y); } c.stroke(); c.restore();
+    for (let x = 3.2; x < 66.6; x += .5){ if (x > 37.6 && x < 39.2) continue; c.fillStyle = '#d6ad55'; c.fillRect(x, 41.4, .3, 3.6); }
+    c.fillStyle = '#050607'; c.fillRect(37.9, 42.2, 1, 2.8); c.beginPath(); c.arc(38.4, 42.2, .5, Math.PI, 0); c.fill();
+    hole(c, 3.5, 4, 1.1); hole(c, 66.1, 4, 1.1);
+    rrect(c, 5, 6, 30, 30, 1.2); c.fillStyle = '#0f1513'; c.fill(); c.strokeStyle = 'rgba(255,255,255,.12)'; c.stroke(); passives(c, 13, 6, 6.5, 34.5, 8.6, 16, px); passives(c, 14, 6, 33.2, 34.5, 35.4, 16, px);
+    dieArt(c, this.die, 9.5, 10.5, 21, px);
+    chipPart(c, 38, 6, 13, 14, px, 'LPDDR5'); chipPart(c, 53, 6, 13, 14, px, 'LPDDR5'); chipPart(c, 38, 23, 7, 7, px, 'PMIC'); passives(c, 15, 47, 23, 66, 30, 14, px);
+    c.textAlign = 'left'; c.textBaseline = 'alphabetic'; c.fillStyle = 'rgba(235,235,245,.72)'; c.font = `800 2.7px ${UI}`; c.fillText('JETSON ORIN NX', 38, 35); c.fillStyle = 'rgba(235,235,245,.4)'; c.font = `600 1.7px ${MONO}`; c.fillText('NVIDIA · 1024 CUDA CORES', 38, 38.6); },
+    live(c, px, t, a){ dieLive(c, this.die, 9.5, 10.5, 21, px, t, a); } },
+];
+
 /* --- station 6: what a network costs on board: chip, watts, grams, minutes --- */
 // hover power from momentum theory: P = (mg)^1.5 / sqrt(2 rho A) / (figure of merit x motor efficiency)
 const HWM = { m0: .72, A: 4 * Math.PI * .0635 ** 2, eta: .45, Wh: 22.2 * .8, Tmax: 35, fc: .29 };
@@ -448,20 +533,47 @@ const hw = { i: 0, f: null, a: [1, 0, 0], tmax: hwFly(HW[0]).t,
     $('#hwSay').innerHTML = o.say + extra;
     $$('#hwBars > div').forEach((d, j) => d.classList.toggle('on', j === i)); },
   build(){ $('#hwBars').innerHTML = HW.map(o => { const r = hwFly(o); return `<div><span>${o.n}</span><i style="transform:scaleX(${fmt(r.t / this.tmax, 3)})"></i><b>${fmt(r.t, 1)} דק׳</b></div>`; }).join(''); this.set(0); },
-  resize(){ this.f = fit($('#hwChips')); },
+  resize(){ this.f = fit($('#hwChips')); this.L = null; },
+  // where each chip goes at the current size, and its static art drawn once into its own canvas
+  layout(W, H, d){
+    const fs = clamp(REM * .8, 11, 15), lab = fs * 4.2, gapmm = W < 500 ? 9 : 14, tot = ART.reduce((t, q) => t + q.fw, 0) + gapmm * 2, side = fs * 4.2, sc = Math.min((W - side * 2) / tot, (H - lab - 6) / 50), y0 = Math.max(4, (H - lab - 50 * sc) / 2) + 50 * sc;
+    let x = Math.max(side, (W - tot * sc) / 2); const pad = 24;
+    const items = ART.map(q => { const it = { q, x, y: y0 - q.fh * sc, w: q.fw * sc, h: q.fh * sc }; x += it.w + gapmm * sc;
+      const cv = document.createElement('canvas'); cv.width = Math.ceil((it.w + pad * 2) * d); cv.height = Math.ceil((it.h + pad * 2) * d); const g = cv.getContext('2d');
+      g.setTransform(d * sc, 0, 0, d * sc, pad * d, pad * d); g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 14 * d; g.shadowOffsetY = 6 * d; rrect(g, 0, 0, q.fw, q.fh, Math.min(2.5, q.fw * .04)); g.fillStyle = '#0b0c0f'; g.fill(); g.shadowColor = 'transparent';
+      q.draw(g, 1 / sc); it.img = cv; return it; });
+    // a magnifier over the tiny STM32, so its pins and marking can be read
+    const s = items[0], mr = clamp(Math.min((y0 - 12 * sc - 10) / 2 - 4, (s.w + gapmm * sc) * .95), 26, 120), zoom = mr * 1.45 / 12;
+    const m = { x: s.x + s.w / 2, y: s.y - 10 - mr, r: mr, zoom }; if (m.y - mr < 2) m.y = mr + 2;
+    const cv = document.createElement('canvas'); cv.width = cv.height = Math.ceil(mr * 2 * d); const g = cv.getContext('2d'); g.setTransform(d * zoom, 0, 0, d * zoom, (mr - 6 * zoom) * d, (mr - 6 * zoom) * d); ART[0].draw(g, 1 / zoom); m.img = cv;
+    return { fs, lab, sc, y0, items, m };
+  },
   paint(dt){
-    const f = this.f, cv = $('#hwChips'); if (!f || f.w < 60) return; const c = cv.getContext('2d'), W = f.w, H = f.h, on = HW[this.i].chip, k = 1 - Math.exp(-dt * 14);
+    const f = this.f, cv = $('#hwChips'); if (!f || f.w < 60) return; const c = cv.getContext('2d'), W = f.w, H = f.h, on = HW[this.i].chip, k = 1 - Math.exp(-dt * 8);
+    if (!this.L || this.L.W !== W || this.L.H !== H){ this.L = Object.assign(this.layout(W, H, f.d), { W, H }); }
+    if (!RM) this.t = (this.t || 0) + dt;
     for (let j = 0; j < 3; j++) this.a[j] += ((j === on ? 1 : 0) - this.a[j]) * k;
-    c.setTransform(f.d, 0, 0, f.d, 0, 0); c.clearRect(0, 0, W, H);
-    const fs = clamp(REM * .8, 11, 16), lab = fs * 4.4, gapmm = W < 500 ? 26 : 14, tot = CHIPS.reduce((t, q) => t + q.w, 0) + gapmm * 2, sc = Math.min((W - fs * 9) / tot, (H - lab) / 50), y0 = 4 + 50 * sc;
-    let x = (W - tot * sc) / 2;
-    CHIPS.forEach((q, j) => { const w = q.w * sc, h = q.h * sc, a = this.a[j], y = y0 - h, r = Math.min(6, w / 6);
-      c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath();
-      c.fillStyle = `rgba(245,245,247,${fmt(.06 + .84 * a, 3)})`; c.fill(); c.strokeStyle = `rgba(245,245,247,${fmt(.35 + .65 * a, 3)})`; c.lineWidth = 1.5; c.stroke();
-      const cx = x + w / 2; c.textAlign = 'center'; c.textBaseline = 'top'; c.direction = 'ltr';
-      c.globalAlpha = .55 + .45 * a; c.font = `700 ${fs}px ${UI}`; c.fillStyle = LABEL; c.fillText(q.n, cx, y0 + fs * .6);
-      c.font = `500 ${fs * .9}px ${MONO}`; c.fillStyle = L2; c.fillText(`${q.w}×${q.h} mm`, cx, y0 + fs * 1.9); c.fillText(q.p, cx, y0 + fs * 3.1); c.globalAlpha = 1;
-      x += w + gapmm * sc; });
+    const L = this.L, t = this.t || 0; c.setTransform(f.d, 0, 0, f.d, 0, 0); c.clearRect(0, 0, W, H);
+    L.items.forEach((it, j) => { const a = this.a[j], cx = it.x + it.w / 2, cy = it.y + it.h / 2;
+      if (a > .01){ const R = Math.max(it.w, it.h) * .85 + 30, g = c.createRadialGradient(cx, cy, 0, cx, cy, R); g.addColorStop(0, `rgba(${LYR.m2},${(.3 * a).toFixed(3)})`); g.addColorStop(.45, `rgba(${LYR.m3},${(.12 * a).toFixed(3)})`); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.fillRect(cx - R, cy - R, R * 2, R * 2); }
+      c.globalAlpha = .42 + .58 * a; c.drawImage(it.img, it.x - 24, it.y - 24, it.img.width / f.d, it.img.height / f.d); c.globalAlpha = 1;
+      if (a > .02){ c.save(); c.translate(it.x, it.y); c.scale(L.sc, L.sc); it.q.live(c, 1 / L.sc, t, a); c.restore();
+        if (c.createConicGradient){ const g = c.createConicGradient(t * 1.6, cx, cy); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(.06, `rgba(255,255,255,${(.85 * a).toFixed(3)})`); g.addColorStop(.12, 'rgba(255,255,255,0)'); g.addColorStop(.5, 'rgba(255,255,255,0)'); g.addColorStop(.56, `rgba(${LYR.m3},${(.6 * a).toFixed(3)})`); g.addColorStop(.62, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+          rrect(c, it.x - .5, it.y - .5, it.w + 1, it.h + 1, Math.min(2.5, it.q.fw * .04) * L.sc); c.strokeStyle = g; c.lineWidth = 1.5; c.stroke(); } }
+      const fs = L.fs; c.textAlign = 'center'; c.textBaseline = 'top'; c.direction = 'ltr'; c.globalAlpha = .55 + .45 * a;
+      c.font = `700 ${fs}px ${UI}`; c.fillStyle = LABEL; c.fillText(CHIPS[j].n, cx, L.y0 + fs * .7);
+      c.font = `500 ${fs * .88}px ${MONO}`; c.fillStyle = L2; c.fillText(`${CHIPS[j].w}×${CHIPS[j].h} mm`, cx, L.y0 + fs * 2); c.fillText(CHIPS[j].p, cx, L.y0 + fs * 3.2); c.globalAlpha = 1; });
+    // the magnifier, with a leader down to the chip
+    const m = L.m, s = L.items[0], a = this.a[0];
+    c.strokeStyle = 'rgba(245,245,247,.35)'; c.lineWidth = 1; c.setLineDash([3, 3]); c.beginPath(); c.moveTo(m.x, m.y + m.r); c.lineTo(s.x + s.w / 2, s.y - 2); c.stroke(); c.setLineDash([]);
+    c.save(); c.beginPath(); c.arc(m.x, m.y, m.r, 0, 7); c.fillStyle = '#08090b'; c.fill(); c.clip();
+    if (a > .01){ const g = c.createRadialGradient(m.x, m.y, 0, m.x, m.y, m.r); g.addColorStop(0, `rgba(${LYR.m2},${(.35 * a).toFixed(3)})`); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.fillRect(m.x - m.r, m.y - m.r, m.r * 2, m.r * 2); }
+    c.globalAlpha = .5 + .5 * a; c.drawImage(m.img, m.x - m.r, m.y - m.r, m.r * 2, m.r * 2); c.globalAlpha = 1;
+    if (a > .02){ c.translate(m.x - 6 * m.zoom, m.y - 6 * m.zoom); c.scale(m.zoom, m.zoom); ART[0].live(c, 1 / m.zoom, t, a); }
+    c.restore();
+    const rg = c.createLinearGradient(m.x - m.r, m.y - m.r, m.x + m.r, m.y + m.r); rg.addColorStop(0, 'rgba(255,255,255,.7)'); rg.addColorStop(.5, 'rgba(255,255,255,.15)'); rg.addColorStop(1, 'rgba(255,255,255,.5)');
+    c.beginPath(); c.arc(m.x, m.y, m.r, 0, 7); c.strokeStyle = rg; c.lineWidth = 2; c.stroke();
+    c.font = `600 ${Math.round(L.fs * .8)}px ${MONO}`; c.fillStyle = L2; c.textAlign = 'right'; c.textBaseline = 'middle'; c.fillText(`×${Math.round(m.zoom / L.sc)}`, m.x - m.r * .72 - 4, m.y + m.r * .72);
   },
 };
 const hwSeg = segmented($('#hwSeg'), i => hw.set(i));
@@ -497,7 +609,7 @@ function makeStage(){
     const pm = new T.PMREMGenerator(R); scene.environment = pm.fromScene(es, .04).texture; pm.dispose();
   } catch (e) { /* lights alone still work */ }
   scene.add(new T.HemisphereLight(0xffffff, 0x060608, .42));
-  const key = new T.DirectionalLight(0xffffff, 1.5); key.position.set(3.5, 7, 5); key.castShadow = true; key.shadow.mapSize.set(1024, 1024);
+  const key = new T.DirectionalLight(0xffffff, 1.5); key.position.set(3.5, 7, 5); key.castShadow = true; key.shadow.mapSize.set(2048, 2048);
   Object.assign(key.shadow.camera, { left: -7, right: 7, top: 7, bottom: -7, near: 1, far: 24 }); key.shadow.camera.updateProjectionMatrix(); key.shadow.bias = -.0006; key.shadow.radius = 4; scene.add(key);
   const rim = new T.DirectionalLight(0xa8c4ff, 1.1); rim.position.set(-6, 3, -5); scene.add(rim);
   const warm = new T.PointLight(0xffb080, .7, 30); warm.position.set(6, 1.5, -3); scene.add(warm);
@@ -505,58 +617,177 @@ function makeStage(){
   const gc = document.createElement('canvas'); gc.width = gc.height = 256; { const g2 = gc.getContext('2d'), gr = g2.createRadialGradient(128, 128, 0, 128, 128, 128); gr.addColorStop(0, '#fff'); gr.addColorStop(.35, '#999'); gr.addColorStop(.7, '#2a2a2a'); gr.addColorStop(1, '#000'); g2.fillStyle = gr; g2.fillRect(0, 0, 256, 256); }
   const pool = new T.Mesh(new T.CircleGeometry(17, 64), new T.MeshStandardMaterial({ color: col(0x3e3e46), roughness: .7, metalness: .2, envMapIntensity: .3, transparent: true, alphaMap: new T.CanvasTexture(gc), depthWrite: false })); pool.rotation.x = -Math.PI / 2; pool.position.y = FLOOR + .004; pool.receiveShadow = true; scene.add(pool);
 
+  /* ---- the drone model: a 5-inch quad built from real shapes (extruded carbon plates, lathed motors, twisted tri-blade props) ---- */
+  const seedR = s => () => { s = (s + 0x6d2b79f5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const aniso = Math.min(8, R.capabilities.getMaxAnisotropy ? R.capabilities.getMaxAnisotropy() : 1);
+  const tex = (w, h, draw, srgb = true) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new T.CanvasTexture(c); if (srgb) t.encoding = T.sRGBEncoding; t.anisotropy = aniso; return t; };
+  const tile = (t, n) => { t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(n, n); return t; };
+  // 2x2 twill carbon weave: each cell is a tow of fibres catching the light along its length
+  const weave = (g, w) => { const n = 8, s = w / n; for (let y = 0; y < n; y++) for (let x = 0; x < n; x++){ const hz = ((x - y + 64) % 4) < 2, gr = hz ? g.createLinearGradient(0, y * s, 0, y * s + s) : g.createLinearGradient(x * s, 0, x * s + s, 0);
+    gr.addColorStop(0, '#0c0c0e'); gr.addColorStop(.5, hz ? '#34343b' : '#26262c'); gr.addColorStop(1, '#0c0c0e'); g.fillStyle = gr; g.fillRect(x * s, y * s, s, s); } };
+  const carbonMap = tile(tex(128, 128, weave), 7);
+  const pcbMap = tex(256, 256, (g, w) => { const r = seedR(7); g.fillStyle = '#0b2c25'; g.fillRect(0, 0, w, w);
+    g.strokeStyle = 'rgba(60,170,130,.45)'; g.lineWidth = 2; g.lineCap = 'round';
+    for (let i = 0; i < 46; i++){ let x = 20 + r() * 216, y = 20 + r() * 216; g.beginPath(); g.moveTo(x, y); for (let k = 0; k < 3; k++){ if (k % 2) y += (r() - .5) * 120; else x += (r() - .5) * 120; x = Math.max(14, Math.min(242, x)); y = Math.max(14, Math.min(242, y)); g.lineTo(x, y); } g.stroke(); }
+    g.fillStyle = '#c8a24e'; for (const [x, y] of [[22, 22], [234, 22], [22, 234], [234, 234]]){ g.beginPath(); g.arc(x, y, 13, 0, 7); g.fill(); g.fillStyle = '#05100d'; g.beginPath(); g.arc(x, y, 7, 0, 7); g.fill(); g.fillStyle = '#c8a24e'; }
+    for (let i = 0; i < 40; i++){ g.fillRect(40 + (i % 10) * 18, i < 10 ? 34 : i < 20 ? 214 : 0, 7, 9); }
+    g.fillStyle = 'rgba(240,240,236,.85)'; g.font = '700 22px ui-monospace,monospace'; g.textAlign = 'center'; g.fillText('F405', 128, 198); g.font = '600 13px ui-monospace,monospace'; g.fillText('IMU', 74, 168); });
+  pcbMap.repeat.set(1 / .38, 1 / .38); pcbMap.offset.set(.5, .5);
+  const labelMap = tex(512, 128, (g, w, h) => { const gr = g.createLinearGradient(0, 0, w, 0); gr.addColorStop(0, '#2a2a30'); gr.addColorStop(1, '#17171b'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#e8e8ec'; g.fillRect(0, 0, 18, h); g.font = '800 54px system-ui,Arial,sans-serif'; g.textBaseline = 'middle'; g.fillText('1500', 44, 56); g.font = '600 26px system-ui,Arial,sans-serif'; g.fillStyle = 'rgba(232,232,236,.7)'; g.fillText('mAh  4S  14.8V  120C', 46, 100);
+    g.font = '800 34px system-ui,Arial,sans-serif'; g.fillStyle = '#e8e8ec'; g.textAlign = 'right'; g.fillText('LiPo', w - 24, 58); });
+  const blurMap = tex(256, 256, (g, w) => { const c = w / 2, gr = g.createRadialGradient(c, c, 0, c, c, c); gr.addColorStop(0, '#000'); gr.addColorStop(.12, '#000'); gr.addColorStop(.2, '#777'); gr.addColorStop(.55, '#fff'); gr.addColorStop(.82, '#bbb'); gr.addColorStop(.94, '#fff'); gr.addColorStop(1, '#000'); g.fillStyle = gr; g.fillRect(0, 0, w, w); }, false);
+
   const M = {
-    carbon: new T.MeshStandardMaterial({ color: col(0x1c1c20), metalness: .65, roughness: .4 }),
-    shell: new T.MeshPhysicalMaterial({ color: col(0x3a3a42), metalness: .55, roughness: .2, clearcoat: 1, clearcoatRoughness: .1 }),
-    metal: new T.MeshStandardMaterial({ color: col(0xb9bcc4), metalness: 1, roughness: .28 }),
+    carbon: new T.MeshPhysicalMaterial({ map: carbonMap, color: 0xffffff, metalness: .25, roughness: .42, clearcoat: 1, clearcoatRoughness: .12 }),
+    shell: new T.MeshPhysicalMaterial({ color: col(0x2a2b31), metalness: .2, roughness: .3, clearcoat: 1, clearcoatRoughness: .06 }),
+    metal: new T.MeshStandardMaterial({ color: col(0xc4c7cf), metalness: 1, roughness: .24 }),
+    anod: new T.MeshPhysicalMaterial({ color: col(0x3b3d45), metalness: .9, roughness: .3, clearcoat: .6, clearcoatRoughness: .2 }),
+    bell: new T.MeshPhysicalMaterial({ color: col(0x9aa0ab), metalness: 1, roughness: .2, clearcoat: .8, clearcoatRoughness: .1 }),
+    copper: new T.MeshStandardMaterial({ color: col(0xc9783e), metalness: 1, roughness: .32 }),
     dark: new T.MeshStandardMaterial({ color: col(0x0d0d10), metalness: .4, roughness: .5 }),
-    pcb: new T.MeshStandardMaterial({ color: col(0x0f5c47), metalness: .2, roughness: .6 }),
-    batt: new T.MeshStandardMaterial({ color: col(0x2c2c31), metalness: .3, roughness: .6 }),
-    band: new T.MeshStandardMaterial({ color: col(0xe2e2e6), metalness: .1, roughness: .5 }),
-    crate: new T.MeshStandardMaterial({ color: col(0xd8d8dc), metalness: .1, roughness: .7 }),
-    blade: new T.MeshStandardMaterial({ color: col(0xeaeaee), metalness: .1, roughness: .4, transparent: true, opacity: .55 }),
-    disc: new T.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .06, depthWrite: false, side: T.DoubleSide }),
+    rubber: new T.MeshStandardMaterial({ color: col(0x141416), metalness: 0, roughness: .85 }),
+    chip: new T.MeshStandardMaterial({ color: col(0x16171b), metalness: .3, roughness: .35 }),
+    gold: new T.MeshStandardMaterial({ color: col(0xd6ad55), metalness: 1, roughness: .3 }),
+    pcb: new T.MeshStandardMaterial({ map: pcbMap, color: 0xffffff, metalness: .15, roughness: .45 }),
+    esc: new T.MeshStandardMaterial({ color: col(0x101215), metalness: .2, roughness: .5 }),
+    batt: new T.MeshPhysicalMaterial({ color: col(0x202024), metalness: .2, roughness: .45, clearcoat: .6 }),
+    label: new T.MeshStandardMaterial({ map: labelMap, metalness: .1, roughness: .5 }),
+    band: new T.MeshStandardMaterial({ color: col(0xd9d9de), metalness: 0, roughness: .8 }),
+    red: new T.MeshStandardMaterial({ color: col(0xb3261e), metalness: .1, roughness: .45 }),
+    yellow: new T.MeshStandardMaterial({ color: col(0xe0b21f), metalness: .1, roughness: .5 }),
+    glass: new T.MeshPhysicalMaterial({ color: col(0x0a1220), metalness: .1, roughness: .02, clearcoat: 1, clearcoatRoughness: 0, envMapIntensity: 2 }),
+    crate: new T.MeshPhysicalMaterial({ color: col(0xd8d8dc), metalness: .05, roughness: .55, clearcoat: .3 }),
+    blade: new T.MeshPhysicalMaterial({ color: col(0x5d6470), metalness: 0, roughness: .2, clearcoat: 1, transparent: true, opacity: .82, side: T.DoubleSide }),
+    disc: new T.MeshBasicMaterial({ color: 0xffffff, alphaMap: blurMap, transparent: true, opacity: .1, depthWrite: false, side: T.DoubleSide }),
     stand: new T.MeshStandardMaterial({ color: col(0x4a4a50), metalness: .9, roughness: .34 }),
   };
-  const G = {
-    plateB: new T.BoxGeometry(1.2, .05, .76), plateT: new T.BoxGeometry(1.02, .05, .62), canopy: new T.SphereGeometry(.5, 40, 20, 0, Math.PI * 2, 0, Math.PI / 2),
-    pcb: new T.BoxGeometry(.46, .025, .46), chip: new T.BoxGeometry(.15, .03, .15), imu: new T.BoxGeometry(.11, .04, .11),
-    batt: new T.BoxGeometry(.9, .24, .42), band: new T.BoxGeometry(.26, .246, .426), arm: new T.BoxGeometry(1.3, .065, .14),
-    motor: new T.CylinderGeometry(.16, .18, .2, 28), bell: new T.CylinderGeometry(.12, .16, .07, 28), ring: new T.TorusGeometry(.2, .022, 8, 40),
-    blade: new T.BoxGeometry(1, .012, .1), hub: new T.CylinderGeometry(.04, .04, .06, 12), disc: new T.CircleGeometry(.5, 48),
-    camBox: new T.BoxGeometry(.22, .17, .16), lens: new T.CylinderGeometry(.055, .055, .07, 20), rail: new T.BoxGeometry(.045, .045, 1.15), strut: new T.BoxGeometry(.035, .42, .035),
-    crate: new T.BoxGeometry(.34, .3, .34), cord: new T.CylinderGeometry(.008, .008, .3, 6),
-    base: new T.CylinderGeometry(.7, .9, .1, 48), pole: new T.CylinderGeometry(.04, .06, 2.6, 20), joint: new T.SphereGeometry(.085, 20, 14), streak: new T.BoxGeometry(1.4, .014, .014),
-  };
-  G.pole.translate(0, 1.3, 0);
-  const mesh = (g, m) => { const o = new T.Mesh(g, m); o.castShadow = true; return o; };
+
+  /* geometry helpers: rounded outlines extruded into plates, merged where one material repeats */
+  const rr = (p, cx, cy, w, h, r) => { const x = cx - w / 2, y = cy - h / 2; p.moveTo(x + r, y); p.lineTo(x + w - r, y); p.quadraticCurveTo(x + w, y, x + w, y + r); p.lineTo(x + w, y + h - r); p.quadraticCurveTo(x + w, y + h, x + w - r, y + h); p.lineTo(x + r, y + h); p.quadraticCurveTo(x, y + h, x, y + h - r); p.lineTo(x, y + r); p.quadraticCurveTo(x, y, x + r, y); return p; };
+  const hole = (cx, cy, r) => { const p = new T.Path(); p.absarc(cx, cy, r, 0, Math.PI * 2, true); return p; };
+  const slot = (cx, cy, w, h) => { const p = new T.Path(), r = Math.min(w, h) / 2, x = cx - w / 2, y = cy - h / 2; p.moveTo(x + r, y); p.lineTo(x + w - r, y); p.quadraticCurveTo(x + w, y, x + w, y + r); p.lineTo(x + w, y + h - r); p.quadraticCurveTo(x + w, y + h, x + w - r, y + h); p.lineTo(x + r, y + h); p.quadraticCurveTo(x, y + h, x, y + h - r); p.lineTo(x, y + r); p.quadraticCurveTo(x, y, x + r, y); return p; };
+  const ext = (shape, depth, bev = .006, seg = 10) => { const g = new T.ExtrudeGeometry(shape, { depth: Math.max(.001, depth - 2 * bev), bevelEnabled: bev > 0, bevelThickness: bev, bevelSize: bev, bevelSegments: 2, curveSegments: seg }); g.translate(0, 0, -(depth - 2 * bev) / 2); g.rotateX(-Math.PI / 2); return g; };
+  const rbox = (w, h, d, r) => ext(rr(new T.Shape(), 0, 0, w - 2 * r * .5, d - 2 * r * .5, r * .5), h, r * .5, 6);
+  const tf = (g, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0) => { g.applyMatrix4(new T.Matrix4().compose(new T.Vector3(x, y, z), new T.Quaternion().setFromEuler(new T.Euler(rx, ry, rz)), new T.Vector3(1, 1, 1))); return g; };
+  const mergeG = list => { const qs = list.map(g => g.index ? g.toNonIndexed() : g); let n = 0; for (const q of qs) n += q.attributes.position.count;
+    const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), uv = new Float32Array(n * 2); let o = 0;
+    for (const q of qs){ pos.set(q.attributes.position.array, o * 3); nor.set(q.attributes.normal.array, o * 3); if (q.attributes.uv) uv.set(q.attributes.uv.array, o * 2); o += q.attributes.position.count; }
+    const out = new T.BufferGeometry(); out.setAttribute('position', new T.BufferAttribute(pos, 3)); out.setAttribute('normal', new T.BufferAttribute(nor, 3)); out.setAttribute('uv', new T.BufferAttribute(uv, 2)); return out; };
+
+  const G = {};
+  { // bottom plate with lightening slots, and a thinner top plate
+    const b = rr(new T.Shape(), 0, 0, 1.1, .68, .12); b.holes.push(slot(-.3, 0, .26, .1), slot(.3, 0, .26, .1), hole(0, .23, .035), hole(0, -.23, .035)); G.plateB = ext(b, .05, .008);
+    const t = rr(new T.Shape(), 0, 0, .86, .5, .1); t.holes.push(slot(0, .14, .4, .07), slot(0, -.14, .4, .07)); for (const [x, y] of [[-.33, -.19], [.33, -.19], [-.33, .19], [.33, .19]]) t.holes.push(hole(x, y, .018)); G.plateT = ext(t, .035, .006);
+  }
+  { // one arm: a tapered beam ending in a round motor pad with mounting holes
+    const L = 1.4, s = new T.Shape(); s.moveTo(0, -.08); s.lineTo(L - .2, -.062); s.quadraticCurveTo(L - .12, -.15, L, -.15); s.absarc(L, 0, .15, -Math.PI / 2, Math.PI / 2, false); s.quadraticCurveTo(L - .12, .15, L - .2, .062); s.lineTo(0, .08); s.lineTo(0, -.08);
+    s.holes.push(hole(L, 0, .038), slot(.55, 0, .5, .05)); for (let k = 0; k < 4; k++){ const a = k * Math.PI / 2 + Math.PI / 4; s.holes.push(hole(L + Math.cos(a) * .085, Math.sin(a) * .085, .013)); }
+    G.arm = ext(s, .055, .008, 14); G.armL = L;
+  }
+  G.standoff = new T.CylinderGeometry(.016, .016, .14, 6); G.screw = new T.CylinderGeometry(.022, .022, .012, 6);
+  { // flight controller: chamfered board, MCU with pins, IMU, connectors
+    const s = new T.Shape(), h = .19, c = .035; s.moveTo(-h + c, -h); s.lineTo(h - c, -h); s.lineTo(h, -h + c); s.lineTo(h, h - c); s.lineTo(h - c, h); s.lineTo(-h + c, h); s.lineTo(-h, h - c); s.lineTo(-h, -h + c); s.lineTo(-h + c, -h);
+    for (const [x, y] of [[-.153, -.153], [.153, -.153], [-.153, .153], [.153, .153]]) s.holes.push(hole(x, y, .016));
+    G.fcb = ext(s, .016, .002, 6); G.escb = ext(s, .018, .002, 6);
+    G.mcu = rbox(.12, .022, .12, .008);
+    const pins = []; for (let side = 0; side < 4; side++) for (let i = 0; i < 9; i++){ const t = -.048 + i * .012, p = new T.BoxGeometry(.005, .006, .02); if (side < 2) tf(p, t, 0, side ? .068 : -.068); else tf(p, side === 2 ? .068 : -.068, 0, t, 0, Math.PI / 2, 0); pins.push(p); }
+    G.pins = mergeG(pins); G.imu = rbox(.06, .016, .06, .006);
+    G.plug = mergeG([0, 1, 2, 3].map(i => tf(new T.BoxGeometry(.05, .03, .025), -.09 + i * .06, 0, 0)));
+    G.fet = mergeG([[-.1, -.1], [-.1, .1], [.1, -.1], [.1, .1], [-.04, -.1], [.04, .1]].map(([x, z]) => tf(new T.BoxGeometry(.05, .014, .05), x, 0, z)));
+    G.cap = new T.CylinderGeometry(.035, .035, .1, 20);
+  }
+  { // canopy: a smooth pod, lower at the nose
+    const g = new T.SphereGeometry(.5, 48, 24, 0, Math.PI * 2, 0, Math.PI / 2), p = g.attributes.position;
+    for (let i = 0; i < p.count; i++){ const x = p.getX(i), y = p.getY(i), z = p.getZ(i); p.setXYZ(i, x * .82, y * .42 * (1 - .28 * Math.max(0, z / .5)), z * .56); }
+    g.computeVertexNormals(); G.canopy = g;
+  }
+  { // motor: stator base, copper windings, bell with vents, shaft and nut (all lathed)
+    const lathe = (pts, n = 40) => new T.LatheGeometry(pts.map(([r, y]) => new T.Vector2(r, y)), n);
+    G.base = lathe([[0, 0], [.15, 0], [.165, .012], [.165, .038], [.14, .05], [0, .05]]);
+    G.wind = lathe([[.06, .05], [.135, .05], [.138, .07], [.135, .09], [.06, .09]], 36);
+    G.bell = lathe([[.148, .085], [.156, .09], [.158, .2], [.15, .214], [.11, .222], [.04, .224], [.02, .232], [0, .232]], 48);
+    G.vents = mergeG([0, 1, 2, 3, 4, 5].map(i => tf(new T.BoxGeometry(.04, .016, .02), Math.cos(i * Math.PI / 3) * .09, .222, Math.sin(i * Math.PI / 3) * .09, 0, -i * Math.PI / 3, 0)));
+    G.slits = mergeG(Array.from({ length: 12 }, (_, i) => { const a = i * Math.PI / 6; return tf(new T.BoxGeometry(.006, .07, .03), Math.cos(a) * .156, .15, Math.sin(a) * .156, 0, -a, 0); }));
+    G.shaft = new T.CylinderGeometry(.014, .014, .07, 12); G.nut = new T.CylinderGeometry(.032, .032, .028, 6);
+    G.ring = new T.TorusGeometry(.172, .011, 8, 48);
+  }
+  { // tri-blade prop: a curved planform, twisted from 26° at the root to 8° at the tip
+    const N = 16, R0 = .05, R1 = .5, le = [], te = [];
+    for (let i = 0; i <= N; i++){ const t = i / N, r = R0 + (R1 - R0) * t, c = .028 + .085 * Math.sin(Math.PI * (.12 + .78 * t)), sw = .035 * t * t; le.push([r, c * .38 + sw]); te.push([r, -c * .62 + sw]); }
+    const s = new T.Shape(); s.moveTo(te[0][0], te[0][1]); s.lineTo(le[0][0], le[0][1]); for (let i = 1; i <= N; i++) s.lineTo(le[i][0], le[i][1]);
+    s.quadraticCurveTo(R1 + .03, (le[N][1] + te[N][1]) / 2, te[N][0], te[N][1]); for (let i = N - 1; i >= 0; i--) s.lineTo(te[i][0], te[i][1]);
+    const one = ext(s, .009, .003, 6), p = one.attributes.position;
+    for (let i = 0; i < p.count; i++){ const x = p.getX(i), y = p.getY(i), z = p.getZ(i), t = clamp((x - R0) / (R1 - R0), 0, 1), a = .46 - .32 * t, cy = y + .012 * Math.sin(Math.PI * t); p.setXYZ(i, x, cy * Math.cos(a) - z * Math.sin(a), cy * Math.sin(a) + z * Math.cos(a)); }
+    one.computeVertexNormals();
+    G.blades = mergeG([0, 1, 2].map(k => tf(k ? one.clone() : one, 0, 0, 0, 0, k * Math.PI * 2 / 3, 0)));
+    G.hub = new T.CylinderGeometry(.055, .06, .045, 24); G.disc = new T.CircleGeometry(.53, 64);
+  }
+  { // battery, straps, leads with an XT60 plug
+    G.batt = rbox(.86, .22, .4, .05); G.band = rbox(.07, .245, .425, .012); G.buckle = new T.BoxGeometry(.075, .02, .06); G.label = new T.PlaneGeometry(.62, .155); G.pad = new T.BoxGeometry(.6, .015, .3);
+    const lead = (x0, z0) => new T.TubeGeometry(new T.CatmullRomCurve3([new T.Vector3(-.43, .05, z0), new T.Vector3(-.55, .09, z0 * 1.4), new T.Vector3(-.6, .2, z0), new T.Vector3(-.5, .3, x0)]), 24, .016, 8);
+    G.leadR = lead(.025, .045); G.leadB = lead(-.025, -.045); G.xt60 = rbox(.07, .06, .12, .01);
+  }
+  { // FPV camera: rounded body, stepped lens barrel, glass, side mounts
+    G.cam = rbox(.19, .19, .16, .035);
+    G.lens = new T.LatheGeometry([[.0, .0], [.07, .0], [.07, .04], [.062, .045], [.062, .1], [.052, .105], [.05, .12], [0, .12]].map(([r, y]) => new T.Vector2(r, y)), 32); G.lens.rotateX(Math.PI / 2);
+    G.glass = new T.SphereGeometry(.047, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2.4); G.glass.rotateX(Math.PI / 2);
+    const m = rr(new T.Shape(), 0, 0, .2, .22, .05); m.holes.push(hole(0, 0, .02)); G.mount = ext(m, .02, .004); G.mount.rotateZ(Math.PI / 2);
+  }
+  { // VTX antenna on the tail, and two thin receiver whips
+    G.ant = new T.TubeGeometry(new T.CatmullRomCurve3([new T.Vector3(0, 0, 0), new T.Vector3(0, .1, -.04), new T.Vector3(0, .26, -.16), new T.Vector3(0, .36, -.3)]), 20, .014, 8);
+    G.antTip = new T.SphereGeometry(.05, 20, 12); G.antTip.scale(1, .7, 1);
+    G.whip = new T.TubeGeometry(new T.CatmullRomCurve3([new T.Vector3(0, 0, 0), new T.Vector3(0, .02, -.12), new T.Vector3(0, .04, -.3)]), 10, .005, 5);
+  }
+  { // landing legs: one bent tube per side
+    const leg = sx => new T.TubeGeometry(new T.CatmullRomCurve3([[.28, .02, -.25], [.36, -.2, -.31], [.42, -.42, -.3], [.43, -.48, -.15], [.43, -.48, .15], [.42, -.42, .3], [.36, -.2, .31], [.28, .02, .25]].map(([x, y, z]) => new T.Vector3(x * sx, y, z)), false, 'catmullrom', .3), 48, .018, 8);
+    G.legL = leg(-1); G.legR = leg(1); G.foot = new T.SphereGeometry(.03, 12, 8);
+  }
+  G.crate = rbox(.34, .3, .34, .04); G.cord = new T.CylinderGeometry(.008, .008, .3, 6);
+  G.sbase = new T.LatheGeometry([[0, 0], [.88, 0], [.9, .02], [.86, .07], [.62, .1], [.1, .11], [0, .11]].map(([r, y]) => new T.Vector2(r, y)), 64);
+  G.pole = new T.CylinderGeometry(.04, .06, 2.6, 24); G.pole.translate(0, 1.3, 0); G.joint = new T.SphereGeometry(.085, 24, 16);
+  G.streak = new T.BoxGeometry(1.4, .014, .014);
+
+  const mesh = (g, m) => { const o = new T.Mesh(g, m); o.castShadow = true; o.receiveShadow = true; return o; };
   const ledBase = col(0xe6ecf8), ledAI = col(0x34c26b), glow = col(0x9cc8ff);
 
   function buildRig(){
     const root = new T.Group(), tilt = new T.Group(); root.add(tilt); scene.add(root);
     const parts = [], props = [], leds = [], skids = [], r = {};
+    // every piece keeps a home position and an exploded offset; t is when, along the explosion, it starts to move
     const part = (o, px, py, pz, dx, dy, dz, t) => { o.position.set(px, py + Y0, pz); tilt.add(o); parts.push({ o, h: o.position.clone(), d: new T.Vector3(dx, dy, dz), t }); return o; };
-    part(mesh(G.plateB, M.carbon), 0, -.08, 0, 0, -.25, 0, .1);
-    const pcbM = M.pcb.clone(), imuM = M.metal.clone(); pcbM.emissive = glow.clone(); pcbM.emissiveIntensity = 0; imuM.emissive = glow.clone(); imuM.emissiveIntensity = 0;
-    const fc = new T.Group(); fc.add(mesh(G.pcb, pcbM)); const chipM = mesh(G.chip, M.dark); chipM.position.set(.09, .028, .06); fc.add(chipM); part(fc, 0, 0, 0, 0, .38, 0, .05);
-    const imu = part(mesh(G.imu, imuM), -.1, .03, -.08, -.32, .82, 0, 0);
-    part(mesh(G.plateT, M.carbon), 0, .1, 0, 0, 1.12, 0, .12);
-    const can = mesh(G.canopy, M.shell); can.scale.set(1.05, .62, .72); part(can, 0, .125, 0, 0, 1.62, 0, .2);
-    const bat = new T.Group(); bat.add(mesh(G.batt, M.batt)); bat.add(mesh(G.band, M.band)); part(bat, 0, -.25, 0, 0, -.78, 0, .15);
-    const cg = new T.Group(); cg.add(mesh(G.camBox, M.dark)); const lens = mesh(G.lens, M.metal); lens.rotation.x = Math.PI / 2; lens.position.z = .1; cg.add(lens); part(cg, 0, -.15, .5, 0, -.2, .95, .18);
+    const grp = (...kids) => { const g = new T.Group(); for (const [geo, mat, x = 0, y = 0, z = 0] of kids){ const m = mesh(geo, mat); m.position.set(x, y, z); g.add(m); } return g; };
+
+    part(mesh(G.plateB, M.carbon), 0, -.07, 0, 0, -.28, 0, .1);
+    const so = new T.Group(); for (const [x, z] of [[-.33, -.19], [.33, -.19], [-.33, .19], [.33, .19]]){ const m = mesh(G.standoff, M.anod); m.position.set(x, 0, z); so.add(m); const sc = mesh(G.screw, M.metal); sc.position.set(x, .076, z); so.add(sc); }
+    part(so, 0, .01, 0, 0, .6, 0, .06);
+    part(grp([G.escb, M.esc], [G.fet, M.chip, 0, .016, 0], [G.cap, M.dark, -.25, .0, .1]), 0, -.025, 0, 0, .1, 0, .05);
+    const pcbM = M.pcb.clone(), imuM = M.chip.clone(); pcbM.emissive = glow.clone(); pcbM.emissiveIntensity = 0; imuM.emissive = glow.clone(); imuM.emissiveIntensity = 0;
+    const fc = grp([G.mcu, M.chip, .045, .019, .02], [G.pins, M.metal, .045, .011, .02], [G.plug, M.band, 0, .023, -.165]); const fcb = mesh(G.fcb, pcbM); fc.add(fcb); part(fc, 0, .03, 0, 0, .38, 0, .05);
+    const imu = part(mesh(G.imu, imuM), -.09, .048, -.07, -.32, .82, 0, 0);
+    part(mesh(G.plateT, M.carbon), 0, .085, 0, 0, 1.12, 0, .12);
+    part(mesh(G.canopy, M.shell), 0, .1, -.02, 0, 1.62, 0, .2);
+    const ant = grp([G.ant, M.dark], [G.antTip, M.shell, 0, .36, -.3], [G.whip, M.dark, .2, -.02, .05], [G.whip, M.dark, -.2, -.02, .05]); ant.children[3].rotation.y = .5; ant.children[2].rotation.y = -.5;
+    part(ant, 0, .1, -.3, 0, .9, -.8, .22);
+    const bat = grp([G.batt, M.batt], [G.band, M.band, -.22, 0, 0], [G.band, M.band, .22, 0, 0], [G.buckle, M.dark, -.22, -.125, 0], [G.buckle, M.dark, .22, -.125, 0], [G.leadR, M.red], [G.leadB, M.dark], [G.xt60, M.yellow, -.5, .3, 0], [G.pad, M.rubber, 0, .115, 0]);
+    for (const zs of [1, -1]){ const lb = mesh(G.label, M.label); lb.position.set(0, -.005, zs * .2025); if (zs < 0) lb.rotation.y = Math.PI; bat.add(lb); }
+    part(bat, 0, -.24, 0, 0, -.82, 0, .15);
+    const cg = grp([G.cam, M.dark], [G.lens, M.anod, 0, 0, .08], [G.glass, M.glass, 0, 0, .2], [G.mount, M.rubber, -.11, 0, 0], [G.mount, M.rubber, .11, 0, 0]); cg.rotation.x = -.28;
+    part(cg, 0, .0, .44, 0, -.15, .95, .18);
     for (const [sx, sz] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]){
-      const dx = sx * Math.SQRT1_2, dz = sz * Math.SQRT1_2, mx = sx * 1.12, mz = sz * 1.12;
-      const arm = mesh(G.arm, M.carbon); arm.rotation.y = -Math.atan2(sz, sx); part(arm, sx * .6, 0, sz * .6, dx * .3, 0, dz * .3, .08);
-      const mg = new T.Group(); mg.add(mesh(G.motor, M.metal)); const bell = mesh(G.bell, M.dark); bell.position.y = .135; mg.add(bell);
-      const lm = new T.MeshBasicMaterial({ color: ledBase.clone() }), ring = new T.Mesh(G.ring, lm); ring.rotation.x = Math.PI / 2; ring.position.y = -.07; mg.add(ring); leds.push({ m: lm, sx });
-      part(mg, mx, .1, mz, dx * .85, .12, dz * .85, .14);
-      const pg = new T.Group(); pg.add(mesh(G.blade, M.blade)); pg.add(mesh(G.hub, M.dark)); const disc = new T.Mesh(G.disc, M.disc); disc.rotation.x = -Math.PI / 2; pg.add(disc); pg.rotation.y = Math.random() * 3;
+      const dx = sx * Math.SQRT1_2, dz = sz * Math.SQRT1_2, mx = sx * 1.12, mz = sz * 1.12, rad = 1.584 - G.armL;
+      const arm = mesh(G.arm, M.carbon); arm.rotation.y = -Math.atan2(sz, sx); part(arm, dx * rad, -.015, dz * rad, dx * .3, 0, dz * .3, .08);
+      const mg = grp([G.base, M.anod], [G.wind, M.copper], [G.bell, M.bell], [G.slits, M.dark], [G.vents, M.dark], [G.shaft, M.metal, 0, .26, 0]);
+      const lm = new T.MeshBasicMaterial({ color: ledBase.clone() }), ring = new T.Mesh(G.ring, lm); ring.rotation.x = Math.PI / 2; ring.position.y = .006; mg.add(ring); leds.push({ m: lm, sx });
+      part(mg, mx, .013, mz, dx * .85, .12, dz * .85, .14);
+      const pg = new T.Group(), bl = mesh(G.blades, M.blade); if (sx * sz < 0) bl.scale.z = -1; pg.add(bl); pg.add(mesh(G.hub, M.dark)); const nut = mesh(G.nut, M.metal); nut.position.y = .035; pg.add(nut);
+      const disc = new T.Mesh(G.disc, M.disc); disc.rotation.x = -Math.PI / 2; disc.position.y = .004; pg.add(disc); pg.rotation.y = Math.random() * 3;
       part(pg, mx, .29, mz, dx * .85, .72, dz * .85, .22); props.push({ o: pg, dir: sx * sz, sx });
       if (sz > 0){ if (sx < 0){ r.motorL = mg; r.propL = pg; } else { r.motorR = mg; r.propR = pg; } }
     }
-    for (const sx of [-1, 1]){ const sg = new T.Group(); const rail = mesh(G.rail, M.carbon); rail.position.y = -.2; sg.add(rail); for (const z of [-.36, .36]){ const s = mesh(G.strut, M.carbon); s.position.set(0, 0, z); sg.add(s); } part(sg, sx * .42, -.42, 0, sx * .28, -1.05, 0, .25); skids.push(sg); }
-    const crate = new T.Group(); crate.add(mesh(G.crate, M.crate)); const cord = mesh(G.cord, M.dark); cord.position.y = .3; crate.add(cord); crate.position.set(1.12, Y0 - .45, 1.12); crate.scale.setScalar(.001); tilt.add(crate);
-    const stand = new T.Group(); const base = mesh(G.base, M.stand); base.position.y = .05; base.receiveShadow = true; stand.add(base); stand.add(mesh(G.pole, M.stand)); const j = mesh(G.joint, M.metal); j.position.y = 2.6; stand.add(j); stand.position.set(0, FLOOR, 0); scene.add(stand);
+    for (const sx of [-1, 1]){ const sg = new T.Group(); sg.add(mesh(sx < 0 ? G.legL : G.legR, M.carbon)); for (const z of [-.15, .15]){ const f = mesh(G.foot, M.rubber); f.position.set(sx * .43, -.48, z); sg.add(f); } part(sg, 0, -.1, 0, sx * .28, -1.0, 0, .25); skids.push(sg); }
+    const crate = grp([G.crate, M.crate], [G.cord, M.dark, 0, .3, 0]); crate.position.set(1.12, Y0 - .45, 1.12); crate.scale.setScalar(.001); tilt.add(crate);
+    const stand = new T.Group(); const base = mesh(G.sbase, M.stand); stand.add(base); stand.add(mesh(G.pole, M.stand)); const j = mesh(G.joint, M.metal); j.position.y = 2.6; stand.add(j); stand.position.set(0, FLOOR, 0); scene.add(stand);
     return Object.assign(r, { root, tilt, parts, props, leds, skids, crate, stand, imu, fc, pcbM, imuM, th: 0, u: 0, mix: 0, load: 0, weak: 0, x: 0, y: 0, s: 1 });
   }
   const A = buildRig(), B = buildRig();
@@ -618,7 +849,7 @@ function makeStage(){
       const i0 = Math.min(NST - 1, Math.floor(f)), i1 = Math.min(NST - 1, i0 + 1); let t = clamp((f - i0 - .15) / .7, 0, 1); t = t * t * (3 - 2 * t);
       const S0 = RM ? SH[st] : SH[i0], S1 = RM ? S0 : SH[i1];
       for (let k = 0; k < NS; k++) tgt[k] = S0[k] + (S1[k] - S0[k]) * t;
-      if (narrow){ tgt[3] = 0; tgt[4] = st === 0 ? .14 : .23; tgt[2] *= Math.max(1.15, 1.05 / cam.aspect) * (1 + .5 * tgt[7]); }
+      if (narrow){ tgt[3] = 0; tgt[4] = st === 0 ? .27 : .25; tgt[2] *= Math.max(1.15, 1.05 / cam.aspect) * (1 + .5 * tgt[7]); }
       if (RM && st !== lastSt && lastSt >= 0){ cv.classList.add('cut'); cv.style.opacity = '0'; setTimeout(() => { cv.style.opacity = '1'; }, 120); }
       lastSt = st;
       const a = (this.snap || RM) ? 1 : 1 - Math.exp(-dt * 4.2); this.snap = false;

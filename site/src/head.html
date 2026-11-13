@@ -190,7 +190,7 @@ canvas.plot.short{height:8.4rem}
 /* ---------- station 6: the cost on the drone ---------- */
 .hw{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:2.4rem;align-items:center}
 .chips{display:grid;gap:.4rem;min-width:0}
-.chips canvas{width:100%;height:clamp(14rem,40vh,22rem);display:block;direction:ltr}
+.chips canvas{width:100%;height:clamp(16rem,46vh,26rem);display:block;direction:ltr}
 .hwr{display:grid;gap:1.2rem;min-width:0}
 .hwr .stats{gap:1rem 2.2rem}
 .hwr .stat b{font-size:clamp(2rem,3vw,3rem);transition:color 200ms ease}
@@ -304,6 +304,34 @@ input[type=range]::-moz-range-thumb{width:1.4rem;height:1.4rem;border:0;border-r
   .dock{border-radius:1.6rem}.dsep{display:none}
   .gain{grid-template-columns:auto minmax(0,1fr) 3rem}.gain input{grid-column:1/-1;order:2}.gain output{order:1}
   canvas.plot{height:11rem}
+  /* phone: compact type, the 3D drone keeps the top third, and the dock is one swipeable row */
+  html{font-size:15px}
+  h1{font-size:2.6rem}.st h2{font-size:1.85rem}.lead,.hero .lead{font-size:1.05rem}.say{font-size:1rem;min-height:0}
+  .st{padding-top:4.6rem;padding-bottom:6.2rem}
+  .st.rig,.st.field{padding-top:38svh}
+  .hero{align-content:end}.hero .col{gap:1rem;padding-bottom:1rem}.hero .hint{display:none}
+  .stat b{font-size:2rem}.stats{gap:.6rem 1.6rem}.hwr .stat b{font-size:1.8rem}
+  .dock{flex-wrap:nowrap;justify-content:flex-start;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;border-radius:999px;padding:.35rem;gap:.35rem;max-width:100%}
+  .dock::-webkit-scrollbar{display:none}
+  .dock>*{flex:none}.dock .btn{min-height:2.6rem;padding:0 .95rem;font-size:.9rem}
+  .dock .seg>button,.dock .seg-hi>span{padding:0 .75rem;font-size:.88rem;min-height:2.6rem}
+  .pad{width:46vw}
+  .steps li{padding:.45rem 0}.steps b{font-size:1.15rem}.steps span{font-size:.88rem}.steps li::before{width:2rem;height:2rem;font-size:.95rem}
+  .eqn{flex-wrap:nowrap;gap:.35rem}.term{flex:1 1 0;padding:.45rem .5rem;gap:.1rem .35rem}.term b{font-size:.78rem}.term em{font-size:.72rem}.term output{font-size:1rem}.term .chip{min-width:1.3rem;height:1.3rem;font-size:.75rem}
+  .loop3 li{padding:.3rem .7rem .3rem .4rem}.loop3 li span{display:none}
+  .phase li{padding:.3rem 0}.phase span{font-size:.85rem}.gsfig canvas{height:7.5rem}#gvLead{display:none}
+  .chips canvas{height:13rem}
+  .tbars div{font-size:.85rem}
+  /* the comparison table becomes three columns, with each row's label above it */
+  .scroll-x{overflow:visible}
+  table{min-width:0;display:block}thead,tbody{display:block}
+  tr{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:.8rem}
+  thead th:first-child{display:none}thead th{font-size:1.05rem;padding:0 0 .5rem}thead th small{font-size:.75rem}
+  tbody th{grid-column:1/-1;width:auto;font-size:.85rem;padding:.8rem 0 .25rem}
+  td{border-top:0;padding:.2rem 0 .5rem;font-size:1rem}
+  .m{justify-content:flex-start;direction:rtl}.m i{width:1.1rem}
+  .bars{gap:1.2rem}.takes{gap:1.2rem}.takes span{font-size:1rem}
+  .quiz .q{font-size:1.35rem}.quiz .opts .btn{min-height:2.9rem;font-size:1rem;padding:0 1.1rem}
 }
 </style>
 <!--BODY-->
