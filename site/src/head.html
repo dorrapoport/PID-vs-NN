@@ -282,7 +282,7 @@ input[type=range]::-moz-range-thumb{width:1.4rem;height:1.4rem;border:0;border-r
 .no3d #stage{background:radial-gradient(70% 60% at 30% 40%,#26262b 0%,#0b0b0d 60%,#000 100%)}
 
 /* ---------- narrow ---------- */
-@media (max-width:1180px){.nav em{display:none}.nav>button[aria-pressed="true"] em,.nav .seg-hi em{display:inline}.nav>button,.nav .seg-hi>span{padding:0 .6rem}}
+@media (max-width:1680px){.nav em,.nav .seg-hi em{display:none}.nav>button,.nav .seg-hi>span{padding:0 .75rem;min-width:2.4rem;justify-content:center}}
 @media (min-width:861px) and (max-height:860px){.st h2{font-size:clamp(2rem,4.6vh,3.2rem)}.neuron{max-width:19rem}canvas.plot{height:11rem}canvas.plot.short{height:7rem}.lead{font-size:1.15rem}.gsfig canvas{height:8.6rem}#gvLead{display:none}.phase li{padding:.3rem 0}.phase span{font-size:.88rem}.loop3 li span{display:none}}
 @media (max-width:860px){
   :root{--col:100%}
@@ -292,7 +292,8 @@ input[type=range]::-moz-range-thumb{width:1.4rem;height:1.4rem;border:0;border-r
   .st.rig::before,.st.field::before{background:linear-gradient(to top,rgba(0,0,0,.92) 0%,rgba(0,0,0,.6) 48%,transparent 72%)}
   .brand,.tools .wide,.tsep{display:none}
   .nav em,.nav>button[aria-pressed="true"] em,.nav .seg-hi em{display:none}
-  .nav>button,.nav .seg-hi>span{padding:0 .25rem;min-width:1.55rem;justify-content:center}
+  .nav>button,.nav .seg-hi>span{padding:0;min-width:1.3rem;min-height:2.4rem;justify-content:center;font-size:.85rem}
+  .nav{gap:0;padding:.2rem}.bar{gap:.3rem}.tools .tool{min-width:2.4rem;padding:0 .4rem}
   .chips canvas{height:11rem}.hw{gap:1.2rem}
   .seg>button,.seg-hi>span{padding:0 .7rem}
   .bar{gap:.4rem}
@@ -334,6 +335,10 @@ input[type=range]::-moz-range-thumb{width:1.4rem;height:1.4rem;border:0;border-r
   .quiz .q{font-size:1.35rem}.quiz .opts .btn{min-height:2.9rem;font-size:1rem;padding:0 1.1rem}
 }
 
+/* a button that is the next thing to press pulses gently */
+@media (prefers-reduced-motion:no-preference){.btn.nudge{animation:nudge 1.6s var(--ease-in-out) infinite}}
+@keyframes nudge{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,.55)}50%{box-shadow:0 0 0 .5rem rgba(255,255,255,0)}}
+.btn.nudge{outline:2px solid rgba(255,255,255,.85);outline-offset:2px}
 /* keyboard: key caps on buttons, the shortcut list, a clear ring on the control in focus */
 .dock button:focus-visible,#tune :focus-visible,#quiz button:focus-visible{outline:2.5px solid var(--label);outline-offset:3px}
 .seg>button:focus-visible{outline-offset:1px}
@@ -347,6 +352,12 @@ kbd{font-family:var(--f-num);font-size:.78rem;font-weight:600;direction:ltr;unic
 .klist li{display:grid;grid-template-columns:4.6rem minmax(0,1fr);gap:.7rem;align-items:center;font-size:.95rem}
 .klist kbd{justify-self:start;padding:.15rem .45rem;border-radius:.4rem;background:var(--fill);box-shadow:inset 0 -1px 0 rgba(255,255,255,.14);white-space:nowrap}
 @media (pointer:coarse){#keysB{display:none}}
+
+/* ---------- station 4: what a neural network is ---------- */
+.nnw{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:2.4rem;align-items:center}
+.nnw .phase li{grid-template-columns:1.9rem minmax(0,1fr)}
+.nnfig canvas{width:100%;height:clamp(16rem,48vh,28rem);display:block;direction:ltr}
+@media (max-width:860px){.nnw{grid-template-columns:minmax(0,1fr);gap:1rem}.nnfig canvas{height:15rem}}
 </style>
 <!--BODY-->
 <div id="app" dir="rtl" lang="he">
@@ -411,7 +422,7 @@ kbd{font-family:var(--f-num);font-size:.78rem;font-weight:600;direction:ltr;unic
 <!-- 3 -->
 <section class="st rig" id="s3">
   <div class="wrap"><div class="col">
-    <p class="eyebrow"><b>3</b><span>מעבדת PID</span><i>1:00</i></p>
+    <p class="eyebrow"><b>3</b><span>מעבדת PID</span><i>0:50</i></p>
     <h2>שלושה מספרים.</h2>
     <p class="say" id="labSay"></p>
     <div class="eqn" id="eqn" role="group" aria-label="פקודת המנועים היא סכום של שלושה איברים. לכל איבר מוצגת התרומה שלו כרגע, באחוזים">
@@ -430,9 +441,29 @@ kbd{font-family:var(--f-num);font-size:.78rem;font-weight:600;direction:ltr;unic
 </section>
 
 <!-- 4 -->
-<section class="st rig" id="s4">
+<section class="st" id="s4">
+  <div class="wrap full"><div class="col" style="gap:1.3rem">
+    <p class="eyebrow"><b>4</b><span>רשת נוירונים</span><i>0:20</i></p>
+    <h2>מה זו בכלל רשת נוירונים?</h2>
+    <div class="nnw">
+      <div class="col" style="gap:1rem">
+        <p class="lead">PID הוא נוסחה שמהנדס כתב ביד. רשת נוירונים היא נוסחה שהמחשב מוצא לבד, מתוך דוגמאות.</p>
+        <ol class="phase" id="nnSteps">
+          <li class="on"><b>נוירון</b><span>כופל כל כניסה במשקל, מחבר, ומחליט כמה חזק להגיב</span></li>
+          <li><b>רשת</b><span>הרבה נוירונים בשכבות, כל אחד מעביר לבא אחריו</span></li>
+          <li><b>אימון</b><span>מזיזים את המשקלים עד שהתשובות נכונות</span></li>
+        </ol>
+        <p class="say" id="nnSay"></p>
+      </div>
+      <figure class="nnfig"><canvas id="nnFig" role="img" aria-label="תרשים חי: נוירון אחד שמקבל זווית וקצב סיבוב, כופל כל אחד במשקל, מחבר ומוציא פקודה. אחר כך רשת של כמה שכבות, ואחר כך אימון שבו המשקלים זזים והטעות קטנה"></canvas></figure>
+    </div>
+  </div></div>
+</section>
+
+<!-- 5 -->
+<section class="st rig" id="s5">
   <div class="wrap"><div class="col">
-    <p class="eyebrow"><b>4</b><span>רשת מכווננת PID</span><i>0:50</i></p>
+    <p class="eyebrow"><b>5</b><span>רשת מכווננת PID</span><i>0:50</i></p>
     <h2>רשת שמכווננת PID.</h2>
     <p class="lead" id="gvLead">PID שכוונן לסוללה מלאה מתקשה כשהתנאים משתנים. רשת קטנה לומדת איזה מקדמים מתאימים לכל מצב.</p>
     <div class="view" id="gv0">
@@ -462,10 +493,10 @@ kbd{font-family:var(--f-num);font-size:.78rem;font-weight:600;direction:ltr;unic
   </div></div>
 </section>
 
-<!-- 5 -->
-<section class="st field" id="s5">
+<!-- 6 -->
+<section class="st field" id="s6">
   <div class="wrap"><div class="col">
-    <p class="eyebrow"><b>5</b><span>רשת לומדת</span><i>0:55</i></p>
+    <p class="eyebrow"><b>6</b><span>רשת לומדת</span><i>0:45</i></p>
     <h2>אפשר גם בלי נוסחה בכלל.</h2>
     <p class="lead">כאן אין תשובה נכונה להעתיק, רק ציון. 240 רחפנים, ובכל אחד גרסה קצת אחרת של אותה רשת.</p>
     <ol class="loop3" id="swSteps" aria-label="סיבוב אימון אחד"><li><b>1</b>נסו<span>כל רחפן טס 2.4 שניות</span></li><li><b>2</b>דרגו<span>מי נשאר באוויר וקרוב ליעד</span></li><li><b>3</b>הזיזו<span>המשקלים זזים לכיוון הטובים</span></li></ol>
@@ -482,10 +513,10 @@ kbd{font-family:var(--f-num);font-size:.78rem;font-weight:600;direction:ltr;unic
   </div></div>
 </section>
 
-<!-- 6 -->
-<section class="st" id="s6">
+<!-- 7 -->
+<section class="st" id="s7">
   <div class="wrap full"><div class="col" style="gap:1.3rem">
-    <p class="eyebrow"><b>6</b><span>המחיר על הרחפן</span><i>0:40</i></p>
+    <p class="eyebrow"><b>7</b><span>המחיר על הרחפן</span><i>0:40</i></p>
     <h2>כל רשת צריכה שבב, חשמל ומשקל.</h2>
     <div class="hw">
       <figure class="chips"><canvas id="hwChips" role="img" aria-label="השבבים בקנה מידה אמיתי: בקר הטיסה STM32F405, המודול Jetson TX2 והמודול Jetson Orin NX"></canvas><figcaption class="cap">בקנה מידה אמיתי, במילימטרים.</figcaption></figure>
@@ -504,10 +535,10 @@ kbd{font-family:var(--f-num);font-size:.78rem;font-weight:600;direction:ltr;unic
   </div></div>
 </section>
 
-<!-- 7 -->
-<section class="st" id="s7">
+<!-- 8 -->
+<section class="st" id="s8">
   <div class="wrap full"><div class="col" style="gap:1.4rem">
-    <p class="eyebrow"><b>7</b><span>השוואה</span><i>0:30</i></p>
+    <p class="eyebrow"><b>8</b><span>השוואה</span><i>0:30</i></p>
     <h2>כל שיטה קונה משהו ומשלמת במשהו.</h2>
     <div class="view" id="tv0">
       <div class="scroll-x">
@@ -544,8 +575,8 @@ kbd{font-family:var(--f-num);font-size:.78rem;font-weight:600;direction:ltr;unic
   </div></div>
 </section>
 
-<!-- 8 -->
-<section class="st end" id="s8">
+<!-- 9 -->
+<section class="st end" id="s9">
   <div class="wrap full"><div class="col" style="gap:2rem">
     <p class="eyebrow">סיכום</p>
     <ul class="takes">
@@ -569,7 +600,7 @@ kbd{font-family:var(--f-num);font-size:.78rem;font-weight:600;direction:ltr;unic
         <li>Mania, H., Guy, A., Recht, B. (2018). Simple random search provides a competitive approach to reinforcement learning. <i>NeurIPS</i>. <a href="https://arxiv.org/abs/1803.07055" target="_blank" rel="noopener">arXiv:1803.07055</a></li>
       </ol>
     </div>
-    <p class="cap" style="max-width:62em">ההדגמות הן סימולציה של ציר אחד שרצה בדפדפן, לא מודל של רחפן מסוים. כל המספרים בתחנות 1 עד 5 מחושבים בזמן אמת, וזמני הטיסה בתחנה 6 הם הערכה ממודל פשוט. מספרי המאמרים מצוטטים מהמקורות. אימון הרשת משתמש בחיפוש אקראי מהסוג שתיארו Mania ועמיתיו.</p>
+    <p class="cap" style="max-width:62em">ההדגמות הן סימולציה של ציר אחד שרצה בדפדפן, לא מודל של רחפן מסוים. כל המספרים בתחנות 1 עד 6 מחושבים בזמן אמת, וזמני הטיסה בתחנה 7 הם הערכה ממודל פשוט. מספרי המאמרים מצוטטים מהמקורות. אימון הרשת משתמש בחיפוש אקראי מהסוג שתיארו Mania ועמיתיו.</p>
   </div></div>
 </section>
 </main>
@@ -593,25 +624,28 @@ kbd{font-family:var(--f-num);font-size:.78rem;font-weight:600;direction:ltr;unic
     <button class="btn" id="tuneB" type="button" aria-expanded="false" aria-controls="tune">כוונון ידני</button>
   </div>
   <div class="dock glass" id="d4">
+    <div class="seg" id="nnSeg" role="group" aria-label="מה מוצג"><button type="button" aria-pressed="true">נוירון אחד</button><button type="button" aria-pressed="false">רשת</button><button type="button" aria-pressed="false">אימון</button></div>
+  </div>
+  <div class="dock glass" id="d5">
     <div class="seg" id="gvSeg" role="group" aria-label="איך הרשת מכווננת"><button type="button" aria-pressed="true">מאומנת מראש</button><button type="button" aria-pressed="false">לומד בטיסה</button></div>
     <span class="dsep" aria-hidden="true"></span>
-    <button class="btn primary" id="gsGo" type="button">אספו דוגמאות</button>
+    <button class="btn primary" id="gsGo" type="button">אספו דוגמאות ואמנו</button>
     <button class="btn" id="adLoad" type="button" aria-pressed="false">מטען בצד</button>
     <button class="btn" id="adBatt" type="button" aria-pressed="false">סוללה חלשה</button>
     <button class="btn" id="adFast" type="button" aria-pressed="false" hidden>למידה מהירה פי 8</button>
     <button class="btn" id="adReset" type="button">אפסו</button>
   </div>
-  <div class="dock glass" id="d5">
+  <div class="dock glass" id="d6">
     <button class="btn primary" id="swGo" type="button">התחילו אימון</button>
     <button class="btn" id="swGust" type="button" disabled>משב רוח</button>
     <button class="btn" id="swWind" type="button" aria-pressed="false" disabled>רוח צד קבועה</button>
     <span class="dsep" aria-hidden="true"></span>
     <button class="btn" id="swReset" type="button">אפסו</button>
   </div>
-  <div class="dock glass" id="d6">
+  <div class="dock glass" id="d7">
     <div class="seg" id="hwSeg" role="group" aria-label="מה רץ על הרחפן"><button type="button" aria-pressed="true">PID</button><button type="button" aria-pressed="false">רשת קטנה</button><button type="button" aria-pressed="false">ראייה, TX2</button><button type="button" aria-pressed="false">Orin NX</button></div>
   </div>
-  <div class="dock glass" id="d7">
+  <div class="dock glass" id="d8">
     <div class="seg" id="tvSeg" role="group" aria-label="תצוגות"><button type="button" aria-pressed="true">השוואה</button><button type="button" aria-pressed="false">מה נמדד</button><button type="button" aria-pressed="false">הצבעה</button></div>
   </div>
   <div class="pop glass" id="tune" role="group" aria-label="כוונון ידני">
@@ -632,7 +666,7 @@ kbd{font-family:var(--f-num);font-size:.78rem;font-weight:600;direction:ltr;unic
     <li><kbd>↓ ↑</kbd><span>תחנה הבאה / קודמת</span></li>
     <li><kbd>← →</kbd><span>מעבר בין הכפתורים של התחנה</span></li>
     <li><kbd>רווח</kbd><span>בחירה בכפתור המסומן</span></li>
-    <li><kbd>⇧ 0–8</kbd><span>קפיצה לתחנה</span></li>
+    <li><kbd>⇧ 0–9</kbd><span>קפיצה לתחנה</span></li>
     <li><kbd>K</kbd><span>שעון: הפעלה / עצירה. ⇧K מאפס</span></li>
     <li><kbd>P</kbd><span>השהיית ההדגמות</span></li>
     <li><kbd>N</kbd><span>הערות למרצה</span></li>

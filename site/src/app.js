@@ -22,11 +22,13 @@ const ST = [
     say: 'בקשו מתנדב. בני אדם מגיבים בערך ברבע שנייה, וזה איטי מדי. צריך משהו שמודד ומתקן לבד.', act: '״אני מחזיק/ה״ וגוררים את הידית. אחרי הנפילה הבקר חוזר לבד.' },
   { name: 'הלולאה', sec: 20, need: 7.4, shot: [-30, 24, 9.6, -.2, 0, 1, 0, 0, 0, 0, 0],
     say: 'מודדים, מחשבים, מתקנים. כל סיבוב מקטין את השגיאה קצת. הסוד הוא לא החוכמה של כל סיבוב אלא הקצב.', act: 'תנו לשניים-שלושה סיבובים לרוץ בהילוך איטי, ואז ״מהירות אמיתית״ ו״משב רוח״.' },
-  { name: 'מעבדת PID', sec: 60, need: 7.2, shot: [12, 8, 7.8, -.25, .03, 0, 1, 0, 0, 0, 0],
+  { name: 'מעבדת PID', sec: 50, need: 7.2, shot: [12, 8, 7.8, -.25, .03, 0, 1, 0, 0, 0, 0],
     say: 'לפני כל לחיצה שאלו את הכיתה מה יקרה. P לבד מתנדנד. D מרגיע. I סוגר את הפער שנשאר. הגרף מראה מאיפה כל איבר לוקח את המידע: עכשיו, עבר, עתיד.', act: 'לפי הסדר: רק P, ‏P + D, ‏+ מטען, ‏P + I + D, מוגזם. ״משב רוח״ בכל שלב. ״כוונון ידני״ פותח את שלושת המחוונים.' },
+  { name: 'מה זו רשת', sec: 20, shot: [12, 8, 7.8, -.25, .03, 0, 1, 0, .96, 0, 0],
+    say: 'לפני שנראה רשתות על הרחפן: נוירון כופל כל כניסה במשקל, מחבר, ומחליט כמה חזק להגיב. רשת היא הרבה כאלה בשכבות. אימון הוא הזזת המשקלים עד שהתשובות נכונות. זה הכול.', act: '1 נוירון אחד, 2 רשת, 3 אימון. אפשר לעבור ביניהם עם ← → ורווח.' },
   { name: 'רשת מכווננת', sec: 50, need: 10.6, shot: [8, 10, 11.5, -.24, .03, 0, 1, 1, 0, 0, 0],
     say: 'שתי דרכים לתת לרשת לכוונן PID. מאומנת מראש: אוספים דוגמאות בסימולטור, והרשת לומדת מהן בירידה בגרדיאנט, כמו שמאמנים כל רשת. לומד בטיסה: נוירון אחד שמעדכן את המקדמים בזמן אמת.', act: '״אספו דוגמאות״, ״אמנו את הרשת״, ואז ״מטען בצד״ ו״סוללה חלשה״. הדגישו שהמטען הזה לא היה בדוגמאות והרשת משלימה. אם יש זמן: ״לומד בטיסה״.' },
-  { name: 'רשת לומדת', sec: 55, shot: [-16, 36, 58, -.2, -.04, 0, 1, 0, 0, 0, 1],
+  { name: 'רשת לומדת', sec: 45, shot: [-16, 36, 58, -.2, -.04, 0, 1, 0, 0, 0, 1],
     say: 'כאן אין תשובה נכונה להעתיק, רק ציון. זו למידת חיזוק: מנסים, מדרגים, ומזיזים את המשקלים לכיוון מי שהצליח. ספרו בקול את ההתרסקויות: זה המחיר, ולכן מאמנים בסימולטור.', act: '״התחילו אימון״, כ-20 שניות. הצביעו על שלושת השלבים ועל הרשת שמשמאל. אחר כך ״רוח צד קבועה״ כדי להראות מה הרשת לא למדה.' },
   { name: 'על הרחפן', sec: 40, shot: [120, 28, 13, 0, 0, 0, 1, 0, .96, 0, 0],
     say: 'רשת בקרה קטנה כמעט לא עולה כלום: היא נכנסת לשבב שכבר יש ברחפן. המחיר מגיע כשהרשת צריכה לראות: מחשב GPU של 10 עד 25 וואט, ומשקל שהמנועים צריכים להרים. המשקל עולה יותר זמן טיסה מהחשמל של המחשב.', act: 'לפי הסדר: PID, רשת בקרה קטנה, רשת ראייה, Orin NX. עצרו על זמן הטיסה.' },
@@ -295,7 +297,7 @@ const gs = { state: 'idle', X: [], Y: [], T: [], i: 0, acc: 0, net: gsNet(), ep:
   tick(dt){
     if (this.state === 'data'){ this.acc += dt;
       while (this.acc >= .07 && this.i < GS_N){ this.acc -= .07; const d = GS_D[this.i % GS_D.length], e = GS_E[Math.floor(this.i / GS_D.length)], g = gsBest(d, e); this.T.push(g); this.X.push(gsIn(d, e)); this.Y.push([g.kp / GS_MAX.kp, g.ki / GS_MAX.ki, g.kd / GS_MAX.kd]); this.i++; }
-      if (this.i >= GS_N) this.state = 'ready'; this.ui(); }
+      if (this.i >= GS_N){ this.state = 'train'; this.acc = 0; } this.ui(); }
     else if (this.state === 'train'){ this.acc += dt * 330; let n = 0;
       while (this.acc >= 1 && this.ep < GS_EP && n < 40){ this.acc -= 1; gsEpoch(this.net, this.X, this.Y); this.ep++; n++; }
       if (this.ep >= GS_EP) this.state = 'done'; this.ui(); }
@@ -305,19 +307,19 @@ const gs = { state: 'idle', X: [], Y: [], T: [], i: 0, acc: 0, net: gsNet(), ep:
   ui(){
     const st = this.state, idx = { idle: -1, data: 0, ready: 1, train: 1, done: 2 }[st], go = $('#gsGo');
     $$('#gsSteps li').forEach((li, j) => { li.classList.toggle('on', j === idx && st !== 'done' || (st === 'done' && j === 2)); li.classList.toggle('done', j < idx || (st === 'ready' && j === 0)); });
-    go.textContent = { idle: 'אספו דוגמאות', data: 'אוספים…', ready: 'אמנו את הרשת', train: 'מאמנים…', done: 'הרשת מאומנת' }[st];
-    go.disabled = st === 'data' || st === 'train' || st === 'done'; go.classList.toggle('primary', st === 'idle' || st === 'ready');
+    go.textContent = { idle: 'אספו דוגמאות ואמנו', data: 'אוספים דוגמאות…', ready: 'אמנו את הרשת', train: 'מאמנים…', done: 'הרשת מאומנת' }[st];
+    go.disabled = st === 'data' || st === 'train' || st === 'done'; go.classList.toggle('primary', st === 'idle' || st === 'ready'); go.classList.toggle('nudge', (st === 'idle' || st === 'ready') && (ad.par.d > 0 || ad.par.eff < 1));
     $('#gsO0').textContent = `${this.i} / ${GS_N}`;
     $('#gsO1').textContent = this.ep ? `${show(Math.sqrt(this.net.loss) * 100, 1)}%` : '–';
     const g = ad.gB, load = ad.par.d > 0, batt = ad.par.eff < 1;
     $('#gsO2').textContent = st === 'done' ? `Kp ${fmt(g.kp, 1)} · Ki ${fmt(g.ki, 1)} · Kd ${fmt(g.kd, 2)}` : '–';
     const key = st + (load ? 'L' : '') + (batt ? 'B' : ''); if (key === this.last) return; this.last = key; const say = $('#gsSay');
     const same = '<b>כרגע שני הרחפנים זהים:</b> הרשת עוד לא אומנה, אז היא נותנת בדיוק את המקדמים הקבועים, ושניהם סוטים באותה מידה. ';
-    if (st === 'idle' && (load || batt)) say.innerHTML = same + 'לחצו ״אספו דוגמאות״ ואז ״אמנו את הרשת״, וההבדל יופיע.';
+    if (st === 'idle' && (load || batt)) say.innerHTML = same + 'לחצו ״אספו דוגמאות ואמנו״, ותוך כמה שניות ההבדל יופיע.';
     else if (st === 'idle') say.innerHTML = 'בשני הרחפנים אותו PID. לאחד מקדמים קבועים שכוונו לסוללה מלאה ובלי מטען. לשני הרשת תבחר מקדמים, אחרי שנאמן אותה.';
-    else if (st === 'data') say.innerHTML = '<b>אוספים דוגמאות:</b> לכל שילוב של מטען וסוללה הסימולטור מנסה מקדמים שונים ושומר את הטובים. זו העבודה שמהנדס עושה ביד, מצב אחרי מצב.';
+    else if (st === 'data') say.innerHTML = '<b>שלב 1, אוספים דוגמאות:</b> לכל שילוב של מטען וסוללה הסימולטור מנסה מקדמים שונים ושומר את הטובים. זו העבודה שמהנדס עושה ביד, מצב אחרי מצב.';
     else if (st === 'ready') say.innerHTML = `<b>${GS_N} דוגמאות מוכנות.</b> עכשיו רשת של 8 נוירונים ו-51 משקלים תלמד לחקות אותן.` + (load || batt ? ' עד אז שני הרחפנים עדיין זהים.' : '');
-    else if (st === 'train') say.innerHTML = '<b>אימון:</b> בכל סבב הרשת מנחשת את כל התשובות, מחשבת כמה טעתה, ומזיזה כל משקל קצת בכיוון שמקטין את הטעות. זו ירידה בגרדיאנט, אותו עיקרון שמאמן גם רשתות ענק.';
+    else if (st === 'train') say.innerHTML = '<b>שלב 2, אימון:</b> בכל סבב הרשת מנחשת את כל התשובות, מחשבת כמה טעתה, ומזיזה כל משקל קצת בכיוון שמקטין את הטעות. זו ירידה בגרדיאנט, אותו עיקרון שמאמן גם רשתות ענק.';
     else if (!load && !batt) say.innerHTML = '<b>הרשת מאומנת.</b> בלי הפרעה שניהם טובים, כי המקדמים הקבועים כוונו בדיוק למצב הזה. עכשיו לחצו ״מטען בצד״.';
     else if (load && !batt) say.innerHTML = '<b>מטען בצד:</b> המקדמים הקבועים כוונו בלי מטען, אין להם איבר I, ולכן הרחפן הקבוע נשאר נטוי ולא מגיע ליעד. הרשת מזהה את המצב, מעלה את <span class="num">Ki</span> וסוגרת את הפער. עכשיו נסו גם ״סוללה חלשה״.';
     else if (!load && batt) say.innerHTML = '<b>סוללה חלשה:</b> המנועים נותנים רק 55% מהכוח. הרשת מעלה את <span class="num">Kp</span> ו-<span class="num">Kd</span> כדי לפצות. לבד זה עוד הבדל קטן, אבל נסו להוסיף ״מטען בצד״.';
@@ -517,6 +519,75 @@ const ART = [
     c.textAlign = 'left'; c.textBaseline = 'alphabetic'; c.fillStyle = 'rgba(235,235,245,.72)'; c.font = `800 2.7px ${UI}`; c.fillText('JETSON ORIN NX', 38, 35); c.fillStyle = 'rgba(235,235,245,.4)'; c.font = `600 1.7px ${MONO}`; c.fillText('NVIDIA · 1024 CUDA CORES', 38, 38.6); },
     live(c, px, t, a){ dieLive(c, this.die, 9.5, 10.5, 21, px, t, a); } },
 ];
+
+/* --- station 4: what a neural network is, at its most basic. One neuron, then a network, then training --- */
+const NN_SAY = [
+  '<b>נוירון אחד</b> מקבל מספרים, כאן הזווית וקצב הסיבוב. הוא כופל כל אחד ב<b>משקל</b>, מחבר הכול, ומחליט כמה חזק להגיב. המשקלים קובעים מה הוא יעשה.',
+  '<b>רשת</b> היא הרבה נוירונים בשכבות. כל קו הוא משקל אחד, וכל נוירון מעביר את התשובה שלו לשכבה הבאה. ככה הרשת יכולה לתאר התנהגויות שנוסחה פשוטה לא מתארת.',
+  '<b>אימון:</b> בהתחלה המשקלים אקראיים והתשובות גרועות. משווים לתשובה הנכונה, ומזיזים כל משקל קצת בכיוון שמקטין את הטעות. אחרי מאות סבבים הרשת עונה טוב, בלי שמישהו כתב לה את הנוסחה.',
+];
+const NN_L = [2, 5, 5, 1];
+const nnW = (() => { const r = mulberry32(21), W = []; for (let l = 0; l < NN_L.length - 1; l++){ const m = []; for (let j = 0; j < NN_L[l + 1]; j++){ const row = []; for (let i = 0; i < NN_L[l]; i++) row.push(gauss(r) * .9); m.push(row); } W.push(m); } return W; })();
+const nnW0 = nnW.map(m => m.map(row => row.map(() => 0)).map((row, j) => row)); // filled below with the random starting weights
+{ const r = mulberry32(77); nnW.forEach((m, l) => m.forEach((row, j) => row.forEach((_, i) => { nnW0[l][j][i] = gauss(r) * .9; }))); }
+function nnFwd(W, x){ const acts = [x]; let a = x; W.forEach((m, l) => { a = m.map(row => { let s = 0; row.forEach((w, i) => { s += w * a[i]; }); return l === W.length - 1 ? Math.tanh(s * .8) : Math.tanh(s); }); acts.push(a); }); return acts; }
+const nn = { v: 0, t: 0, f: null, ep: 0,
+  set(i){ this.v = i; this.ep = 0; $('#nnSay').innerHTML = NN_SAY[i]; $$('#nnSteps li').forEach((li, j) => { li.classList.toggle('on', j === i); li.classList.toggle('done', j < i); }); },
+  resize(){ this.f = fit($('#nnFig')); },
+  paint(dt){
+    const f = this.f, cv = $('#nnFig'); if (!f || f.w < 60) return; const c = cv.getContext('2d'), W = f.w, H = f.h;
+    if (!paused && !RM) this.t += dt; const t = this.t;
+    c.setTransform(f.d, 0, 0, f.d, 0, 0); c.clearRect(0, 0, W, H); c.direction = 'rtl';
+    const fs = clamp(REM * .85, 12, 17), ang = 14 * Math.sin(t * .9), rate = 40 * Math.cos(t * .9);
+    const iso = v => '\u2066' + v + '\u2069', pulse = (x0, y0, x1, y1, u, r, col) => { c.beginPath(); c.arc(x0 + (x1 - x0) * u, y0 + (y1 - y0) * u, r, 0, 7); c.fillStyle = col; c.fill(); };
+    if (this.v === 0){ // one neuron, with real numbers
+      const w1 = .8, w2 = .25, xi = W * .14, xn = W * .5, xo = W * .9 - fs * 1.6, y1 = H * .3, y2 = H * .72, yn = H * .5, R = Math.min(H * .2, W * .1);
+      const s = w1 * ang + w2 * rate, out = Math.tanh(s / 12), u = (t * .9) % 1;
+      [[y1, w1, 'זווית', show(ang, 0) + '°', ang], [y2, w2, 'קצב סיבוב', show(rate, 0) + '°/s', rate]].forEach(([y, w, name, val, x]) => {
+        c.strokeStyle = 'rgba(245,245,247,.55)'; c.lineWidth = 1.5 + w * 7; c.beginPath(); c.moveTo(xi + fs * 2.2, y); c.lineTo(xn - R, yn); c.stroke();
+        pulse(xi + fs * 2.2, y, xn - R, yn, u, 3 + Math.min(6, Math.abs(x) * w / 4), '#fff');
+        c.beginPath(); c.arc(xi, y, fs * 2, 0, 7); c.fillStyle = '#000'; c.fill(); c.strokeStyle = L3; c.lineWidth = 1.5; c.stroke();
+        text(c, iso(val), xi, y, `600 ${fs * .95}px ${MONO}`, LABEL); text(c, name, xi, y + fs * 2.9, `600 ${fs}px ${UI}`, L2);
+        const mx = xi + fs * 2.2 + (xn - R - xi - fs * 2.2) * .22, my = y + (yn - y) * .22 - fs * 1.3; text(c, iso(`× ${fmt(w, 2)}`), mx, my, `600 ${fs}px ${MONO}`, CAI);
+      });
+      c.beginPath(); c.arc(xn, yn, R, 0, 7); c.fillStyle = '#0b0d0c'; c.fill(); c.strokeStyle = CAI; c.lineWidth = 2.5; c.stroke();
+      text(c, 'Σ', xn, yn - R * .18, `700 ${R * .7}px ${UI}`, LABEL); text(c, iso(show(s, 1)), xn, yn + R * .42, `500 ${fs * .9}px ${MONO}`, L2);
+      text(c, 'נוירון', xn, yn - R - fs * 1.1, `700 ${fs * 1.05}px ${UI}`, CAI);
+      c.strokeStyle = 'rgba(52,194,107,.7)'; c.lineWidth = 3; c.beginPath(); c.moveTo(xn + R, yn); c.lineTo(xo - fs * 1.4, yn); c.stroke(); pulse(xn + R, yn, xo - fs * 1.4, yn, u, 5, CAI);
+      const bh = H * .5, by = yn - bh / 2, bx = xo, bw = fs * 1.6; c.fillStyle = 'rgba(120,120,128,.25)'; c.fillRect(bx, by, bw, bh); c.fillStyle = CAI; const hh = out * bh / 2; c.fillRect(bx, yn - Math.max(0, hh), bw, Math.abs(hh));
+      c.fillStyle = L3; c.fillRect(bx - 3, yn - .5, bw + 6, 1);
+      text(c, 'פקודה', bx + bw / 2, by - fs * 1.2, `600 ${fs}px ${UI}`, L2); text(c, iso(pct(out * 100)), bx + bw / 2, by + bh + fs * 1.1, `600 ${fs * .95}px ${MONO}`, LABEL);
+      return;
+    }
+    // a network: 2 inputs, two hidden layers of 5, one output. Line width is the size of each weight
+    const train = this.v === 2; if (train && !paused) this.ep += dt * 60; const prog = train ? 1 - Math.exp(-this.ep / 160) : 1, cyc = train && this.ep > 900;
+    if (cyc) this.ep = 0;
+    const Wt = nnW.map((m, l) => m.map((row, j) => row.map((w, i) => { const w0 = nnW0[l][j][i]; return w0 + (w - w0) * prog + (train ? Math.sin(t * 7 + i + j * 2 + l) * .08 * (1 - prog) : 0); })));
+    const x = [ang / 14, rate / 40], acts = nnFwd(Wt, x), right = Math.tanh(.9 * x[0] + .35 * x[1]);
+    const L = NN_L.length, padX = Math.max(W * .13, fs * 4.6), top = train ? Math.max(H * .14, W < 560 ? fs * 4.2 : 0) : H * .08, bot = H * .92, X = l => padX + (W - 2 * padX) * l / (L - 1), Y = (l, j) => { const n = NN_L[l], gap = Math.min((bot - top) / Math.max(n, 2), fs * 3.6); return (top + bot) / 2 + (j - (n - 1) / 2) * gap; };
+    const u = (t * .7) % 1, hop = Math.floor(u * (L - 1)), uu = u * (L - 1) - hop;
+    for (let l = 0; l < L - 1; l++) for (let j = 0; j < NN_L[l + 1]; j++) for (let i = 0; i < NN_L[l]; i++){
+      const w = Wt[l][j][i], x0 = X(l), y0 = Y(l, i), x1 = X(l + 1), y1 = Y(l + 1, j);
+      c.strokeStyle = w > 0 ? `rgba(245,245,247,${fmt(.18 + .5 * Math.min(1, Math.abs(w)), 3)})` : `rgba(52,194,107,${fmt(.18 + .5 * Math.min(1, Math.abs(w)), 3)})`; c.lineWidth = .6 + Math.min(5, Math.abs(w) * 3);
+      c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke();
+      if (l === hop && Math.abs(acts[l][i]) > .15) pulse(x0, y0, x1, y1, uu, 1.5 + Math.abs(acts[l][i]) * 2.5, 'rgba(255,255,255,.9)');
+    }
+    for (let l = 0; l < L; l++) for (let j = 0; j < NN_L[l]; j++){
+      const a = acts[l][j], r = l === 0 || l === L - 1 ? fs * 1.15 : fs * .8; c.beginPath(); c.arc(X(l), Y(l, j), r, 0, 7); c.fillStyle = '#000'; c.fill();
+      c.beginPath(); c.arc(X(l), Y(l, j), r, 0, 7); c.fillStyle = `rgba(52,194,107,${fmt(Math.abs(a) * .85, 3)})`; c.fill(); c.strokeStyle = l === L - 1 ? CAI : L3; c.lineWidth = 1.5; c.stroke();
+    }
+    text(c, 'זווית', X(0) - fs * 1.6, Y(0, 0), `600 ${fs}px ${UI}`, L2, 'right'); text(c, 'קצב', X(0) - fs * 1.6, Y(0, 1), `600 ${fs}px ${UI}`, L2, 'right');
+    text(c, 'פקודה', X(L - 1) + fs * 1.6, Y(L - 1, 0), `600 ${fs}px ${UI}`, CAI, 'left');
+    text(c, 'כניסות', X(0), bot + fs * .2, `500 ${fs * .85}px ${UI}`, L3); text(c, 'שכבות נסתרות', (X(1) + X(2)) / 2, bot + fs * .2, `500 ${fs * .85}px ${UI}`, L3); text(c, 'יציאה', X(L - 1), bot + fs * .2, `500 ${fs * .85}px ${UI}`, L3);
+    if (train){ // how far the network's answer is from the right one, shrinking round after round
+      const err = Math.abs(acts[L - 1][0] - right), shown = Math.max(err, (1 - prog) * .6);
+      text(c, `סבב אימון ${iso(Math.round(this.ep))}`, W - padX, fs * .9, `600 ${fs}px ${UI}`, LABEL, 'right');
+      const two = W < 560, bx = padX, bw = two ? W - 2 * padX - fs * 5.5 : W * .34, by = two ? fs * 2.1 : fs * .55; c.fillStyle = 'rgba(120,120,128,.25)'; c.fillRect(bx, by, bw, fs * .7); c.fillStyle = WARN; c.fillRect(bx + bw * (1 - Math.min(1, shown)), by, bw * Math.min(1, shown), fs * .7);
+      text(c, `טעות ${iso(Math.round(Math.min(1, shown) * 100) + '%')}`, bx + bw + fs * .6, by + fs * .35, `600 ${fs * .9}px ${UI}`, L2, 'left');
+    }
+  },
+};
+const nnSeg = segmented($('#nnSeg'), i => nn.set(i));
 
 /* --- station 6: what a network costs on board: chip, watts, grams, minutes --- */
 // hover power from momentum theory: P = (mg)^1.5 / sqrt(2 rho A) / (figure of merit x motor efficiency)
@@ -860,7 +931,7 @@ function makeStage(){
       for (let k = 0; k < NS; k++) cur[k] += (tgt[k] - cur[k]) * a;
       const [az, el, dist, ox, oy, ex, stand, twin, dim, spin, swp] = cur;
       if (!RM && !paused && spin > .02) yaw += dt * .32 * spin; else if (spin <= .02){ const yt = Math.round(yaw / (Math.PI * 2)) * Math.PI * 2; yaw += (yt - yaw) * (1 - Math.exp(-dt * 5)); }
-      const w = i => clamp(1 - Math.abs(f - i) * 2.6, 0, 1); this.k[0] = w(1); this.k[1] = w(2) * ex; this.k[2] = w(3); this.k[3] = w(4) * twin;
+      const w = i => clamp(1 - Math.abs(f - i) * 2.6, 0, 1); this.k[0] = w(1); this.k[1] = w(2) * ex; this.k[2] = w(3); this.k[3] = w(5) * twin;
       const sc = 1 - (1 - SWL.s) * swp; // on the way to the field the hero drone shrinks into one of the many
       poseRig(A, ex, stand, -1.95 * twin, swp > .93 ? 0 : 1, sc, inA, dt, paused, this.k[1], this.hl); A.root.rotation.y = yaw;
       poseRig(B, 0, stand, 1.95 * twin, twin, sc, inB, dt, paused, 0, -1);
@@ -897,12 +968,12 @@ function makeFlat(){
     gust(){},
     parts(){ const p = (lx, ly) => { const t = A.th * Math.PI / 180, c = Math.cos(t), s = Math.sin(t); return proj(A.x + lx * c + ly * s, A.y - lx * s + ly * c); }; return { imu: p(-.1, HB + .2), fc: p(.1, HB), mL: p(-1.12, HB), mR: p(1.12, HB), tL: [p(-1.12, HB + .3), p(-1.12, HB + 1.3)], tR: [p(1.12, HB + .3), p(1.12, HB + 1.3)] }; },
     update(dt, f, st, inA, inB){
-      const colEl = $('#s1 .col'), cw = colEl ? colEl.getBoundingClientRect().width : W * .4, free = narrow ? 1 : clamp(1 - (cw + 40) / W, .3, .75), twin = st === 4 ? 1 : 0, w = i => clamp(1 - Math.abs(f - i) * 2.6, 0, 1);
-      S = Math.min(free * W / (twin ? 10.6 : 7.2), H / (narrow ? 14 : 8)); cx = free * W / 2; cy = narrow ? H * .26 : H * .5; this.st = st; this.sw = w(5);
-      this.k[0] = w(1); this.k[1] = w(2); this.k[2] = w(3); this.k[3] = w(4);
-      const a = 1 - Math.exp(-dt * 30); A.x = -1.95 * twin; B.x = 1.95 * twin; B.on = twin > 0; A.on = st >= 1 && st <= 4;
+      const colEl = $('#s1 .col'), cw = colEl ? colEl.getBoundingClientRect().width : W * .4, free = narrow ? 1 : clamp(1 - (cw + 40) / W, .3, .75), twin = st === 5 ? 1 : 0, w = i => clamp(1 - Math.abs(f - i) * 2.6, 0, 1);
+      S = Math.min(free * W / (twin ? 10.6 : 7.2), H / (narrow ? 14 : 8)); cx = free * W / 2; cy = narrow ? H * .26 : H * .5; this.st = st; this.sw = w(6);
+      this.k[0] = w(1); this.k[1] = w(2); this.k[2] = w(3); this.k[3] = w(5);
+      const a = 1 - Math.exp(-dt * 30); A.x = -1.95 * twin; B.x = 1.95 * twin; B.on = twin > 0; A.on = st >= 1 && st <= 5 && st !== 4;
       A.th += ((inA.th || 0) - A.th) * a; B.th += ((inB.th || 0) - B.th) * a; A.u = inA.u || 0; B.u = inB.u || 0; A.load = inA.load ? 1 : 0; B.load = inB.load ? 1 : 0; A.mix = inA.ai ? 1 : 0; B.mix = inB.ai ? 1 : 0;
-      $('#shade').style.opacity = st >= 6 ? '.9' : '0';
+      $('#shade').style.opacity = st >= 7 || st === 4 ? '.9' : '0';
     } };
 }
 try { stage = makeStage(); } catch (e) { stage = null; }
@@ -982,7 +1053,7 @@ fx.draw = function(f, st, dt){
   }
   if (k[3] > .02){
     const a = k[3];
-    [[A, 'מקדמים קבועים', LABEL, ad.ea], [B, ad.mode === 'pre' ? (gs.trained() ? 'רשת מכווננת' : 'רשת, לפני אימון') : 'נוירון לומד', CAI, ad.eb]].forEach(([r, name, colr, e]) => { annot(r, ad.r, 1.8, 2.45, 2.45, a, false); const p = stage.proj(r.x, r.y + 3.15 * r.s, 0); c.globalAlpha = a; text(c, name, p[0], p[1] - REM * 1.3, `700 ${REM * 1.2}px ${UI}`, colr); if (ad.t > 2) text(c, `סטייה ממוצעת ${show(Math.sqrt(e), 1)}°`, p[0], p[1], `500 ${REM}px ${UI}`, L2); c.globalAlpha = 1; });
+    [[A, 'מקדמים קבועים', LABEL, ad.ea], [B, ad.mode === 'pre' ? (gs.trained() ? 'רשת מכווננת' : 'לפני אימון: אותם מקדמים') : 'נוירון לומד', CAI, ad.eb]].forEach(([r, name, colr, e]) => { annot(r, ad.r, 1.8, 2.45, 2.45, a, false); const p = stage.proj(r.x, r.y + 3.15 * r.s, 0); c.globalAlpha = a; text(c, name, p[0], p[1] - REM * 1.3, `700 ${REM * 1.2}px ${UI}`, colr); if (ad.t > 2) text(c, `סטייה ממוצעת ${show(Math.sqrt(e), 1)}°`, p[0], p[1], `500 ${REM}px ${UI}`, L2); c.globalAlpha = 1; });
   }
 };
 
@@ -1028,7 +1099,8 @@ const KEYMAP = [
   { seg: '#lpSeg', KeyG: ['#lpGust', 'משב רוח'] },
   { seg: '#presets', KeyG: ['#gustB', 'משב רוח'], KeyT: ['#tuneB', 'כוונון ידני (בפנים: ↑↓ שורה, ← → ערך, Esc סוגר)'], KeyY: ['#spB', 'יעד 15°'], KeyL: ['#loadB', 'מטען בצד'], KeyX: ['#noiseB', 'רעש בחיישן'],
     'Q / A': [null, 'Kp למעלה / למטה'], 'W / S': [null, 'Ki למעלה / למטה'], 'E / D': [null, 'Kd למעלה / למטה'] },
-  { seg: '#gvSeg', Enter: ['#gsGo', 'אספו דוגמאות / אמנו'], KeyL: ['#adLoad', 'מטען בצד'], KeyB: ['#adBatt', 'סוללה חלשה'], KeyZ: ['#adFast', 'למידה מהירה פי 8'], KeyR: ['#adReset', 'אפסו'] },
+  { seg: '#nnSeg' },
+  { seg: '#gvSeg', Enter: ['#gsGo', 'אספו דוגמאות ואמנו'], KeyL: ['#adLoad', 'מטען בצד'], KeyB: ['#adBatt', 'סוללה חלשה'], KeyZ: ['#adFast', 'למידה מהירה פי 8'], KeyR: ['#adReset', 'אפסו'] },
   { Enter: ['#swGo', 'התחילו / עצרו אימון'], KeyG: ['#swGust', 'משב רוח'], KeyW: ['#swWind', 'רוח צד קבועה'], KeyR: ['#swReset', 'אפסו'] },
   { seg: '#hwSeg' },
   { seg: '#tvSeg', 'A / B / C': [null, 'תשובה בהצבעה'], Enter: ['#qzNext', 'התרחיש הבא'] },
@@ -1058,7 +1130,7 @@ const tiltKey = (type, key) => $('#pad').dispatchEvent(new KeyboardEvent(type, {
    The bar's DOM order runs right to left on screen, so ← is "next" and → is "previous". */
 function barItems(){
   const d = docks[active], list = d ? $$('button', d).filter(usable) : [];
-  if (active === 7 && !$('#tv2').hidden) list.push(...$$('#qzO button, #qzNext').filter(usable));
+  if (active === 8 && !$('#tv2').hidden) list.push(...$$('#qzO button, #qzNext').filter(usable));
   return list;
 }
 const focusEl = el => { if (el){ el.focus({ preventScroll: true }); } return !!el; };
@@ -1109,7 +1181,7 @@ addEventListener('keydown', e => {
   const dig = /^(?:Digit|Numpad)([0-9])$/.exec(c);
   if (dig && e.shiftKey){ e.preventDefault(); go(Math.min(NST - 1, +dig[1]), true); return; } // Shift + digit jumps to a station
   if (dig){ const bs = m.seg ? $$(':scope > button', $(m.seg)) : [], b = bs[+dig[1] - 1]; if (b){ e.preventDefault(); press(b); } return; }
-  if (active === 7 && !$('#tv2').hidden && /^Key[ABC]$/.test(c)){ e.preventDefault(); press($$('#qzO button')[c.charCodeAt(3) - 65]); return; }
+  if (active === 8 && !$('#tv2').hidden && /^Key[ABC]$/.test(c)){ e.preventDefault(); press($$('#qzO button')[c.charCodeAt(3) - 65]); return; }
   if (active === 3 && GAINKEYS[c]){ e.preventDefault(); const [g, d] = GAINKEYS[c], el = sliders[g][0]; if (d > 0) el.stepUp(5); else el.stepDown(5); el.dispatchEvent(new Event('input', { bubbles: true })); if (!tune.classList.contains('on')) setTune(true); return; }
   if (c === 'KeyT' && active === 3){ e.preventDefault(); press(tuneB); if (tune.classList.contains('on')) focusEl($('#kp')); return; }
   if (m[c] && m[c][0] && (c !== 'Enter' || !(t && t.closest && t.closest('button')))){ if (press($(m[c][0]))) e.preventDefault(); return; }
@@ -1123,7 +1195,7 @@ addEventListener('keydown', e => {
 addEventListener('keyup', e => { if (active === 1 && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) tiltKey('keyup', e.key); });
 
 /* ================= loop ================= */
-function resizeAll(){ REM = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16; measure(); adChart.resize(); labPlot.resize(); sw.resize(); gs.resize(); hw.resize(); fx.resize(); stage.resize(); segs.forEach(s => s.place(true)); }
+function resizeAll(){ REM = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16; measure(); adChart.resize(); labPlot.resize(); sw.resize(); gs.resize(); hw.resize(); nn.resize(); fx.resize(); stage.resize(); segs.forEach(s => s.place(true)); }
 addEventListener('resize', resizeAll);
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(resizeAll);
 let last = performance.now(), secAcc = 0;
@@ -1133,23 +1205,23 @@ function frame(now){
   const f = scrollF(), st = clamp(Math.round(f), 0, NST - 1);
   if (st !== active) setActive(st);
   if (clock.on){ clock.t += dt; secAcc += dt; if (secAcc > .25){ secAcc = 0; clockPaint(); } }
-  if (!paused){ if (st === 1) advance(ch, dt); else if (st === 2) lp.tick(dt); else if (st === 3) advance(lab, dt); else if (st === 4){ advance(ad, dt); gs.tick(dt); } else if (st === 5) sw.tick(dt); }
-  if (st === 1) ch.paint(); else if (st === 2) lp.paint(); else if (st === 3) lab.paint(); else if (st === 4) ad.paint(); else if (st === 5) sw.paint(dt); else if (st === 6) hw.paint(dt);
+  if (!paused){ if (st === 1) advance(ch, dt); else if (st === 2) lp.tick(dt); else if (st === 3) advance(lab, dt); else if (st === 5){ advance(ad, dt); gs.tick(dt); } else if (st === 6) sw.tick(dt); }
+  if (st === 1) ch.paint(); else if (st === 2) lp.paint(); else if (st === 3) lab.paint(); else if (st === 4) nn.paint(dt); else if (st === 5) ad.paint(); else if (st === 6) sw.paint(dt); else if (st === 7) hw.paint(dt);
   let a = {}, b = {};
   if (st === 1) a = { th: ch.s.th, u: ch.u };
   else if (st === 2){ a = { th: lp.s.th, u: lp.real || lp.phase === 2 ? lp.uNow : 0 }; stage.hl = lp.real ? 3 : lp.phase; }
   else if (st === 3) a = { th: lab.s.th, u: lab.out.u, load: lab.par.d > 0 };
-  else if (st === 4){ a = { th: ad.sa.th, u: ad.ua, load: ad.par.d > 0, weak: ad.par.eff < 1 }; b = { th: ad.sb.th, u: ad.ub, load: ad.par.d > 0, weak: ad.par.eff < 1, ai: true }; }
-  else if (st === 5) a = { th: 0, ai: true };
+  else if (st === 5){ a = { th: ad.sa.th, u: ad.ua, load: ad.par.d > 0, weak: ad.par.eff < 1 }; b = { th: ad.sb.th, u: ad.ub, load: ad.par.d > 0, weak: ad.par.eff < 1, ai: true }; }
+  else if (st === 6) a = { th: 0, ai: true };
   stage.update(dt, f, st, a, b, paused, sw);
   fx.draw(f, st, dt);
   requestAnimationFrame(frame);
 }
 // initial state
-presetSeg.set(0, true); applyPreset('p'); sw.init(); showQ(); gs.ui(); hw.build(); lp.gust(); lp.meas = lp.s.th; lp.text(); resizeAll();
+presetSeg.set(0, true); applyPreset('p'); nn.set(0); sw.init(); showQ(); gs.ui(); hw.build(); lp.gust(); lp.meas = lp.s.th; lp.text(); resizeAll();
 for (let i = 0; i < 480; i++){ lab.step(); ch.step(); ad.step(); } // two seconds of history so the charts are not empty at rest
 ch.paint(); lp.paint(); lab.paint(); ad.paint(); sw.paint(0);
 stage.live = true; app.classList.add('anim');
-const hs = /^#s([0-8])$/.exec(location.hash || ''); if (hs) go(+hs[1], true);
+const hs = /^#s([0-9])$/.exec(location.hash || ''); if (hs) go(+hs[1], true);
 requestAnimationFrame(frame);
 })();
