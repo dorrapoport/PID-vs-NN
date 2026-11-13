@@ -312,20 +312,29 @@ input[type=range]::-moz-range-thumb{width:1.4rem;height:1.4rem;border:0;border-r
   .dock{border-radius:1.6rem}.dsep{display:none}
   .gain{grid-template-columns:auto minmax(0,1fr) 3rem}.gain input{grid-column:1/-1;order:2}.gain output{order:1}
   canvas.plot{height:11rem}
-  /* phone: no snapping (stations are taller than the screen), and each station's text rides on a black sheet that
-     slides up over the fixed 3D stage with a soft top edge, instead of a darkening layer that ends in a hard line */
+  /* phone: the 3D stage is a panel fixed to the top of the screen, and the text scrolls under it, like a native app
+     with a fixed media header. Its bottom edge fades (a scroll edge effect), so text slides softly beneath it. Stations
+     without a drone slide the panel away and give the text the whole screen. No snapping: stations are taller than the screen. */
+  :root{--sh:46svh}
   html{scroll-snap-type:none}
   .st.rig::before,.st.field::before{display:none}
-  .st .wrap{position:relative;isolation:isolate}
-  .st .wrap::before{content:"";position:absolute;z-index:-1;top:-5.5rem;bottom:-3rem;left:calc(-1 * max(16px,env(safe-area-inset-left,0px)));right:calc(-1 * max(16px,env(safe-area-inset-right,0px)));pointer-events:none;
-    background:linear-gradient(to bottom,rgba(0,0,0,0) 0,rgba(0,0,0,.72) 2.6rem,#000 5.5rem,#000 calc(100% - 3rem),rgba(0,0,0,0) 100%)}
+  #stage,#fx,#shade{inset:0 0 auto 0;height:var(--sh);z-index:3;transition:transform 480ms var(--ease-drawer),opacity 300ms ease;
+    -webkit-mask-image:linear-gradient(#000 calc(100% - 2.4rem),transparent);mask-image:linear-gradient(#000 calc(100% - 2.4rem),transparent)}
+  #stage{background:radial-gradient(80% 70% at 50% 45%,#202024 0%,#0b0b0d 60%,#000 100%)}
+  .nostage #stage,.nostage #fx,.nostage #shade{transform:translateY(-100%);opacity:0}
+  @media (prefers-reduced-motion:reduce){#stage,#fx,#shade{transition:opacity 200ms ease}.nostage #stage,.nostage #fx,.nostage #shade{transform:none}}
+  /* the floating controls get a solid edge under them, so text never shows around the bar */
+  .docks::before{content:"";position:absolute;z-index:-1;inset:auto 0 0 0;height:calc(100% + 2.2rem);pointer-events:none;background:linear-gradient(to top,#000 55%,rgba(0,0,0,0))}
+  .dock:not(.on){transition:none}
   .glass{-webkit-backdrop-filter:blur(20px) saturate(1.6);backdrop-filter:blur(20px) saturate(1.6)}
   /* phone: compact type, the 3D drone keeps the top third, and the dock is one swipeable row */
   html{font-size:15px}
   h1{font-size:2.6rem}.st h2{font-size:1.85rem}.lead,.hero .lead{font-size:1.05rem}.say{font-size:1rem;min-height:0}
-  .st{padding-top:4.6rem;padding-bottom:6.2rem}
-  .st.rig,.st.field{padding-top:38svh}
-  .hero{align-content:end}.hero .col{gap:1rem;padding-bottom:1rem}.hero .hint{display:none}
+  /* one continuous column of text under the panel: stations follow each other with a short gap, not a screen each */
+  .st,.st.rig,.st.field{min-height:0;padding-top:3.2rem;padding-bottom:1rem;align-content:start}
+  .st.hero{padding-top:calc(var(--sh) - 1.5rem);min-height:0}
+  .st+.st{border-top:1px solid rgba(255,255,255,.08)}
+  .st.end{padding-bottom:9rem}.hero .col{gap:1rem;padding-bottom:1rem}.hero .hint{display:none}
   .stat b{font-size:2rem}.stats{gap:.6rem 1.6rem}.hwr .stat b{font-size:1.8rem}
   .dock{flex-wrap:nowrap;justify-content:flex-start;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;border-radius:999px;padding:.35rem;gap:.35rem;max-width:100%}
   .dock::-webkit-scrollbar{display:none}
@@ -905,9 +914,12 @@ const ST = [
     say: 'PID כשאפשר, למידה כשחייבים, ולרוב שילוב של השניים.', act: 'המקורות למטה, לשאלות מהקהל.' },
 ];
 const NST = ST.length, secs = ST.map((_, i) => $('#s' + i));
-let tops = [], vh = innerHeight;
-function measure(){ vh = innerHeight; tops = secs.map(s => { const r = s.getBoundingClientRect(); return [r.top + scrollY, r.bottom + scrollY]; }); }
+let tops = [], vh = innerHeight, OFF = 0, PHONE = false;
+function measure(){ vh = innerHeight; PHONE = matchMedia('(max-width: 860px)').matches; OFF = PHONE ? Math.round(($('#stage').offsetHeight || vh * .46) + 4) : 0; tops = secs.map(s => { const r = s.getBoundingClientRect(); return [r.top + scrollY, r.bottom + scrollY]; }); }
 function scrollF(){
+  if (PHONE){ // the station under the reading line; the last quarter screen before the next one blends into it
+    const y = scrollY + OFF, n = tops.length; if (!n || y <= tops[0][0]) return 0; let i = 0; while (i + 1 < n && tops[i + 1][0] <= y) i++;
+    if (i + 1 >= n) return i; const T = vh * .25, d = tops[i + 1][0] - y; return d < T ? i + 1 - d / T : i; }
   const y = scrollY, n = tops.length;
   if (!n || y <= tops[0][0]) return 0;
   for (let i = 0; i < n; i++){
@@ -1791,7 +1803,7 @@ function makeStage(){
       const i0 = Math.min(NST - 1, Math.floor(f)), i1 = Math.min(NST - 1, i0 + 1); let t = clamp((f - i0 - .15) / .7, 0, 1); t = t * t * (3 - 2 * t);
       const S0 = RM ? SH[st] : SH[i0], S1 = RM ? S0 : SH[i1];
       for (let k = 0; k < NS; k++) tgt[k] = S0[k] + (S1[k] - S0[k]) * t;
-      if (narrow){ tgt[3] = 0; tgt[4] = st === 0 ? .27 : .25; tgt[2] *= Math.max(1.15, 1.05 / cam.aspect) * (1 + .5 * tgt[7]); }
+      if (narrow){ tgt[3] = 0; tgt[4] = .06; tgt[2] *= Math.max(1.12, 1.15 / cam.aspect) * (1 + .42 * tgt[7]); }
       if (RM && st !== lastSt && lastSt >= 0){ cv.classList.add('cut'); cv.style.opacity = '0'; setTimeout(() => { cv.style.opacity = '1'; }, 120); }
       lastSt = st;
       const a = (this.snap || RM) ? 1 : 1 - Math.exp(-dt * 4.2); this.snap = false;
@@ -1920,7 +1932,7 @@ fx.draw = function(f, st, dt){
   }
   if (k[3] > .02){
     const a = k[3];
-    [[A, 'מקדמים קבועים', LABEL, ad.ea], [B, ad.mode === 'pre' ? (gs.trained() ? 'רשת מכווננת' : 'לפני אימון: אותם מקדמים') : 'נוירון לומד', CAI, ad.eb]].forEach(([r, name, colr, e]) => { annot(r, ad.r, 1.8, 2.45, 2.45, a, false); const p = stage.proj(r.x, r.y + 3.15 * r.s, 0); c.globalAlpha = a; text(c, name, p[0], p[1] - REM * 1.3, `700 ${REM * 1.2}px ${UI}`, colr); if (ad.t > 2) text(c, `סטייה ממוצעת ${show(Math.sqrt(e), 1)}°`, p[0], p[1], `500 ${REM}px ${UI}`, L2); c.globalAlpha = 1; });
+    [[A, narrow ? 'קבועים' : 'מקדמים קבועים', LABEL, ad.ea], [B, ad.mode === 'pre' ? (gs.trained() ? 'רשת מכווננת' : (narrow ? 'לפני אימון' : 'לפני אימון: אותם מקדמים')) : 'נוירון לומד', CAI, ad.eb]].forEach(([r, name, colr, e]) => { annot(r, ad.r, 1.8, 2.45, 2.45, a, false); const p = stage.proj(r.x, r.y + (narrow ? 1.75 : 3.15) * r.s, 0), fs = narrow ? REM * .95 : REM * 1.2; c.globalAlpha = a; text(c, name, p[0], p[1] - fs * 1.1, `700 ${fs}px ${UI}`, colr); if (ad.t > 2) text(c, `${narrow ? 'סטייה' : 'סטייה ממוצעת'} ${show(Math.sqrt(e), 1)}°`, p[0], p[1], `500 ${fs * .85}px ${UI}`, L2); c.globalAlpha = 1; });
   }
 };
 
@@ -1930,10 +1942,13 @@ rail.innerHTML = ST.map((s, i) => `<button type="button" aria-pressed="${i === 0
 const navSeg = segmented(rail, (i, e) => go(i, e.detail === 0));
 const docks = ST.map((_, i) => $('#d' + i));
 let active = -1, paused = false;
-function go(i, instant){ measure(); if (instant) stage.snap = true; window.scrollTo({ top: tops[i][0], behavior: 'auto' }); }
+function go(i, instant){ measure(); if (instant) stage.snap = true;
+  // phones: the station's title lands just below the 3D panel, or below the top bar when that station has no drone
+  const top = PHONE ? tops[i][0] - (ST[i].shot[8] > .5 ? 24 : OFF - 30) : tops[i][0];
+  window.scrollTo({ top: Math.max(0, top), behavior: 'auto' }); }
 $('#brand').addEventListener('click', e => go(0, e.detail === 0));
 function setActive(st){
-  active = st; secs.forEach((s, i) => s.classList.toggle('on', i === st)); navSeg.set(st, RM);
+  active = st; secs.forEach((s, i) => s.classList.toggle('on', i === st)); navSeg.set(st, RM); app.classList.toggle('nostage', ST[st].shot[8] > .5);
   docks.forEach((d, i) => { if (!d) return; d.classList.toggle('on', i === st); d.inert = i !== st; });
   { const f = document.activeElement; if (f && f.closest && f.closest('.docks, #quiz')) f.blur(); }
   setTune(false); if (keysPop && keysPop.classList.contains('on')) keysPaint(); $('#noteSay').textContent = ST[st].say; $('#noteDo').textContent = ST[st].act; clockPaint();

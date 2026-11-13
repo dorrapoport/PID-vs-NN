@@ -311,20 +311,29 @@ input[type=range]::-moz-range-thumb{width:1.4rem;height:1.4rem;border:0;border-r
   .dock{border-radius:1.6rem}.dsep{display:none}
   .gain{grid-template-columns:auto minmax(0,1fr) 3rem}.gain input{grid-column:1/-1;order:2}.gain output{order:1}
   canvas.plot{height:11rem}
-  /* phone: no snapping (stations are taller than the screen), and each station's text rides on a black sheet that
-     slides up over the fixed 3D stage with a soft top edge, instead of a darkening layer that ends in a hard line */
+  /* phone: the 3D stage is a panel fixed to the top of the screen, and the text scrolls under it, like a native app
+     with a fixed media header. Its bottom edge fades (a scroll edge effect), so text slides softly beneath it. Stations
+     without a drone slide the panel away and give the text the whole screen. No snapping: stations are taller than the screen. */
+  :root{--sh:46svh}
   html{scroll-snap-type:none}
   .st.rig::before,.st.field::before{display:none}
-  .st .wrap{position:relative;isolation:isolate}
-  .st .wrap::before{content:"";position:absolute;z-index:-1;top:-5.5rem;bottom:-3rem;left:calc(-1 * max(16px,env(safe-area-inset-left,0px)));right:calc(-1 * max(16px,env(safe-area-inset-right,0px)));pointer-events:none;
-    background:linear-gradient(to bottom,rgba(0,0,0,0) 0,rgba(0,0,0,.72) 2.6rem,#000 5.5rem,#000 calc(100% - 3rem),rgba(0,0,0,0) 100%)}
+  #stage,#fx,#shade{inset:0 0 auto 0;height:var(--sh);z-index:3;transition:transform 480ms var(--ease-drawer),opacity 300ms ease;
+    -webkit-mask-image:linear-gradient(#000 calc(100% - 2.4rem),transparent);mask-image:linear-gradient(#000 calc(100% - 2.4rem),transparent)}
+  #stage{background:radial-gradient(80% 70% at 50% 45%,#202024 0%,#0b0b0d 60%,#000 100%)}
+  .nostage #stage,.nostage #fx,.nostage #shade{transform:translateY(-100%);opacity:0}
+  @media (prefers-reduced-motion:reduce){#stage,#fx,#shade{transition:opacity 200ms ease}.nostage #stage,.nostage #fx,.nostage #shade{transform:none}}
+  /* the floating controls get a solid edge under them, so text never shows around the bar */
+  .docks::before{content:"";position:absolute;z-index:-1;inset:auto 0 0 0;height:calc(100% + 2.2rem);pointer-events:none;background:linear-gradient(to top,#000 55%,rgba(0,0,0,0))}
+  .dock:not(.on){transition:none}
   .glass{-webkit-backdrop-filter:blur(20px) saturate(1.6);backdrop-filter:blur(20px) saturate(1.6)}
   /* phone: compact type, the 3D drone keeps the top third, and the dock is one swipeable row */
   html{font-size:15px}
   h1{font-size:2.6rem}.st h2{font-size:1.85rem}.lead,.hero .lead{font-size:1.05rem}.say{font-size:1rem;min-height:0}
-  .st{padding-top:4.6rem;padding-bottom:6.2rem}
-  .st.rig,.st.field{padding-top:38svh}
-  .hero{align-content:end}.hero .col{gap:1rem;padding-bottom:1rem}.hero .hint{display:none}
+  /* one continuous column of text under the panel: stations follow each other with a short gap, not a screen each */
+  .st,.st.rig,.st.field{min-height:0;padding-top:3.2rem;padding-bottom:1rem;align-content:start}
+  .st.hero{padding-top:calc(var(--sh) - 1.5rem);min-height:0}
+  .st+.st{border-top:1px solid rgba(255,255,255,.08)}
+  .st.end{padding-bottom:9rem}.hero .col{gap:1rem;padding-bottom:1rem}.hero .hint{display:none}
   .stat b{font-size:2rem}.stats{gap:.6rem 1.6rem}.hwr .stat b{font-size:1.8rem}
   .dock{flex-wrap:nowrap;justify-content:flex-start;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;border-radius:999px;padding:.35rem;gap:.35rem;max-width:100%}
   .dock::-webkit-scrollbar{display:none}

@@ -39,9 +39,12 @@ const ST = [
     say: 'PID כשאפשר, למידה כשחייבים, ולרוב שילוב של השניים.', act: 'המקורות למטה, לשאלות מהקהל.' },
 ];
 const NST = ST.length, secs = ST.map((_, i) => $('#s' + i));
-let tops = [], vh = innerHeight;
-function measure(){ vh = innerHeight; tops = secs.map(s => { const r = s.getBoundingClientRect(); return [r.top + scrollY, r.bottom + scrollY]; }); }
+let tops = [], vh = innerHeight, OFF = 0, PHONE = false;
+function measure(){ vh = innerHeight; PHONE = matchMedia('(max-width: 860px)').matches; OFF = PHONE ? Math.round(($('#stage').offsetHeight || vh * .46) + 4) : 0; tops = secs.map(s => { const r = s.getBoundingClientRect(); return [r.top + scrollY, r.bottom + scrollY]; }); }
 function scrollF(){
+  if (PHONE){ // the station under the reading line; the last quarter screen before the next one blends into it
+    const y = scrollY + OFF, n = tops.length; if (!n || y <= tops[0][0]) return 0; let i = 0; while (i + 1 < n && tops[i + 1][0] <= y) i++;
+    if (i + 1 >= n) return i; const T = vh * .25, d = tops[i + 1][0] - y; return d < T ? i + 1 - d / T : i; }
   const y = scrollY, n = tops.length;
   if (!n || y <= tops[0][0]) return 0;
   for (let i = 0; i < n; i++){
@@ -925,7 +928,7 @@ function makeStage(){
       const i0 = Math.min(NST - 1, Math.floor(f)), i1 = Math.min(NST - 1, i0 + 1); let t = clamp((f - i0 - .15) / .7, 0, 1); t = t * t * (3 - 2 * t);
       const S0 = RM ? SH[st] : SH[i0], S1 = RM ? S0 : SH[i1];
       for (let k = 0; k < NS; k++) tgt[k] = S0[k] + (S1[k] - S0[k]) * t;
-      if (narrow){ tgt[3] = 0; tgt[4] = st === 0 ? .27 : .25; tgt[2] *= Math.max(1.15, 1.05 / cam.aspect) * (1 + .5 * tgt[7]); }
+      if (narrow){ tgt[3] = 0; tgt[4] = .06; tgt[2] *= Math.max(1.12, 1.15 / cam.aspect) * (1 + .42 * tgt[7]); }
       if (RM && st !== lastSt && lastSt >= 0){ cv.classList.add('cut'); cv.style.opacity = '0'; setTimeout(() => { cv.style.opacity = '1'; }, 120); }
       lastSt = st;
       const a = (this.snap || RM) ? 1 : 1 - Math.exp(-dt * 4.2); this.snap = false;
@@ -1054,7 +1057,7 @@ fx.draw = function(f, st, dt){
   }
   if (k[3] > .02){
     const a = k[3];
-    [[A, 'מקדמים קבועים', LABEL, ad.ea], [B, ad.mode === 'pre' ? (gs.trained() ? 'רשת מכווננת' : 'לפני אימון: אותם מקדמים') : 'נוירון לומד', CAI, ad.eb]].forEach(([r, name, colr, e]) => { annot(r, ad.r, 1.8, 2.45, 2.45, a, false); const p = stage.proj(r.x, r.y + 3.15 * r.s, 0); c.globalAlpha = a; text(c, name, p[0], p[1] - REM * 1.3, `700 ${REM * 1.2}px ${UI}`, colr); if (ad.t > 2) text(c, `סטייה ממוצעת ${show(Math.sqrt(e), 1)}°`, p[0], p[1], `500 ${REM}px ${UI}`, L2); c.globalAlpha = 1; });
+    [[A, narrow ? 'קבועים' : 'מקדמים קבועים', LABEL, ad.ea], [B, ad.mode === 'pre' ? (gs.trained() ? 'רשת מכווננת' : (narrow ? 'לפני אימון' : 'לפני אימון: אותם מקדמים')) : 'נוירון לומד', CAI, ad.eb]].forEach(([r, name, colr, e]) => { annot(r, ad.r, 1.8, 2.45, 2.45, a, false); const p = stage.proj(r.x, r.y + (narrow ? 1.75 : 3.15) * r.s, 0), fs = narrow ? REM * .95 : REM * 1.2; c.globalAlpha = a; text(c, name, p[0], p[1] - fs * 1.1, `700 ${fs}px ${UI}`, colr); if (ad.t > 2) text(c, `${narrow ? 'סטייה' : 'סטייה ממוצעת'} ${show(Math.sqrt(e), 1)}°`, p[0], p[1], `500 ${fs * .85}px ${UI}`, L2); c.globalAlpha = 1; });
   }
 };
 
@@ -1064,10 +1067,13 @@ rail.innerHTML = ST.map((s, i) => `<button type="button" aria-pressed="${i === 0
 const navSeg = segmented(rail, (i, e) => go(i, e.detail === 0));
 const docks = ST.map((_, i) => $('#d' + i));
 let active = -1, paused = false;
-function go(i, instant){ measure(); if (instant) stage.snap = true; window.scrollTo({ top: tops[i][0], behavior: 'auto' }); }
+function go(i, instant){ measure(); if (instant) stage.snap = true;
+  // phones: the station's title lands just below the 3D panel, or below the top bar when that station has no drone
+  const top = PHONE ? tops[i][0] - (ST[i].shot[8] > .5 ? 24 : OFF - 30) : tops[i][0];
+  window.scrollTo({ top: Math.max(0, top), behavior: 'auto' }); }
 $('#brand').addEventListener('click', e => go(0, e.detail === 0));
 function setActive(st){
-  active = st; secs.forEach((s, i) => s.classList.toggle('on', i === st)); navSeg.set(st, RM);
+  active = st; secs.forEach((s, i) => s.classList.toggle('on', i === st)); navSeg.set(st, RM); app.classList.toggle('nostage', ST[st].shot[8] > .5);
   docks.forEach((d, i) => { if (!d) return; d.classList.toggle('on', i === st); d.inert = i !== st; });
   { const f = document.activeElement; if (f && f.closest && f.closest('.docks, #quiz')) f.blur(); }
   setTune(false); if (keysPop && keysPop.classList.contains('on')) keysPaint(); $('#noteSay').textContent = ST[st].say; $('#noteDo').textContent = ST[st].act; clockPaint();
