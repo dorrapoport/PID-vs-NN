@@ -1,0 +1,827 @@
+(() => {
+'use strict';
+const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const app = $('#app');
+document.documentElement.lang = 'he'; document.documentElement.dir = 'rtl';
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const fmt = (v, n = 1) => { const s = v.toFixed(n); return +s === 0 ? (0).toFixed(n) : s; };
+const show = (v, n = 1) => fmt(v, n).replace('-', '−');                       // for people: a real minus sign
+const pct = v => (v > 0 && Math.round(v) !== 0 ? '+' : '') + show(v, 0) + '%';
+const big = n => Math.round(n).toLocaleString('en-US');
+const LABEL = '#f5f5f7', L2 = 'rgba(235,235,245,.7)', L3 = 'rgba(235,235,245,.44)', CP = '#2389e2', CI = '#b38f18', CD = '#d44996', CAI = '#34c26b', WARN = '#ff9f0a';
+const UI = 'system-ui, -apple-system, "Heebo", "Segoe UI", Arial, sans-serif', MONO = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
+let REM = 16;
+
+/* ================= stations ================= */
+// shot: [azimuth°, elevation°, distance, x offset, y offset, explode, stand, twin, dim, spin, swarm]
+// need: how many world units have to fit in the part of the screen the text leaves free
+const ST = [
+  { name: 'פתיחה', sec: 15, shot: [28, 12, 7.4, -.2, -.03, 0, 0, 0, 0, 1, 0],
+    say: 'מי ניסה פעם לאזן מטאטא על כף היד? רחפן עושה את זה כל הזמן, עם ארבעה מנועים, ובלי להתעייף.', act: '״התחילו״ מפעיל את השעון ועובר לתחנה 1. חץ למטה או רווח מקדמים תחנה.' },
+  { name: 'האתגר', sec: 30, need: 6.8, shot: [12, 8, 7.6, -.23, .03, 0, 1, 0, 0, 0, 0],
+    say: 'בקשו מתנדב. בני אדם מגיבים בערך ברבע שנייה, וזה איטי מדי. צריך משהו שמודד ומתקן לבד.', act: '״אני מחזיק/ה״ וגוררים את הידית. אחרי הנפילה הבקר חוזר לבד.' },
+  { name: 'הלולאה', sec: 20, need: 7.4, shot: [-30, 24, 9.6, -.2, 0, 1, 0, 0, 0, 0, 0],
+    say: 'מודדים, מחשבים, מתקנים. כל סיבוב מקטין את השגיאה קצת. הסוד הוא לא החוכמה של כל סיבוב אלא הקצב.', act: 'תנו לשניים-שלושה סיבובים לרוץ בהילוך איטי, ואז ״מהירות אמיתית״ ו״משב רוח״.' },
+  { name: 'מעבדת PID', sec: 60, need: 7.2, shot: [12, 8, 7.8, -.25, .03, 0, 1, 0, 0, 0, 0],
+    say: 'לפני כל לחיצה שאלו את הכיתה מה יקרה. P לבד מתנדנד. D מרגיע. I סוגר את הפער שנשאר. הגרף מראה מאיפה כל איבר לוקח את המידע: עכשיו, עבר, עתיד.', act: 'לפי הסדר: רק P, ‏P + D, ‏+ מטען, ‏P + I + D, מוגזם. ״משב רוח״ בכל שלב. ״כוונון ידני״ פותח את שלושת המחוונים.' },
+  { name: 'רשת מכווננת', sec: 50, need: 10.6, shot: [8, 10, 11.5, -.24, .03, 0, 1, 1, 0, 0, 0],
+    say: 'שתי דרכים לתת לרשת לכוונן PID. מאומנת מראש: אוספים דוגמאות בסימולטור, והרשת לומדת מהן בירידה בגרדיאנט, כמו שמאמנים כל רשת. לומד בטיסה: נוירון אחד שמעדכן את המקדמים בזמן אמת.', act: '״אספו דוגמאות״, ״אמנו את הרשת״, ואז ״מטען בצד״ ו״סוללה חלשה״. הדגישו שהמטען הזה לא היה בדוגמאות והרשת משלימה. אם יש זמן: ״לומד בטיסה״.' },
+  { name: 'רשת לומדת', sec: 55, shot: [-16, 36, 58, -.2, -.04, 0, 1, 0, 0, 0, 1],
+    say: 'כאן אין תשובה נכונה להעתיק, רק ציון. זו למידת חיזוק: מנסים, מדרגים, ומזיזים את המשקלים לכיוון מי שהצליח. ספרו בקול את ההתרסקויות: זה המחיר, ולכן מאמנים בסימולטור.', act: '״התחילו אימון״, כ-20 שניות. הצביעו על שלושת השלבים ועל הרשת שמשמאל. אחר כך ״רוח צד קבועה״ כדי להראות מה הרשת לא למדה.' },
+  { name: 'על הרחפן', sec: 40, shot: [120, 28, 13, 0, 0, 0, 1, 0, .96, 0, 0],
+    say: 'רשת בקרה קטנה כמעט לא עולה כלום: היא נכנסת לשבב שכבר יש ברחפן. המחיר מגיע כשהרשת צריכה לראות: מחשב GPU של 10 עד 25 וואט, ומשקל שהמנועים צריכים להרים. המשקל עולה יותר זמן טיסה מהחשמל של המחשב.', act: 'לפי הסדר: PID, רשת בקרה קטנה, רשת ראייה, Orin NX. עצרו על זמן הטיסה.' },
+  { name: 'השוואה', sec: 30, shot: [140, 30, 14, 0, 0, 0, 1, 0, .93, 0, 0],
+    say: 'אין שיטה שמנצחת בכל שורה. הבחירה תלויה במה שיקר לכם: זמן פיתוח, ביצועים, או היכולת להוכיח שזה בטוח.', act: '״מה נמדד״ מציג את מדידות הריחוף המגנטי. ״הצבעה״: הכיתה מצביעה, ורק אז לוחצים.' },
+  { name: 'סיכום', sec: 0, shot: [180, 34, 16, 0, 0, 0, 1, 0, .93, 0, 0],
+    say: 'PID כשאפשר, למידה כשחייבים, ולרוב שילוב של השניים.', act: 'המקורות למטה, לשאלות מהקהל.' },
+];
+const NST = ST.length, secs = ST.map((_, i) => $('#s' + i));
+let tops = [], vh = innerHeight;
+function measure(){ vh = innerHeight; tops = secs.map(s => { const r = s.getBoundingClientRect(); return [r.top + scrollY, r.bottom + scrollY]; }); }
+function scrollF(){
+  const y = scrollY, n = tops.length;
+  if (!n || y <= tops[0][0]) return 0;
+  for (let i = 0; i < n; i++){
+    const a = tops[i][0], b = Math.max(a, tops[i][1] - vh);
+    if (y < a) continue;
+    if (y <= b) return i;
+    if (i + 1 >= n) return i;
+    const na = tops[i + 1][0];
+    if (y < na) return i + (y - b) / Math.max(1, na - b);
+  }
+  return n - 1;
+}
+
+/* ================= small components ================= */
+const segs = [];
+function segmented(root, cb){ // a "selected" copy of the labels is clipped to the active segment, so colour and position change together
+  const btns = $$(':scope > button', root), hi = document.createElement('div');
+  hi.className = 'seg-hi'; hi.setAttribute('aria-hidden', 'true'); hi.innerHTML = btns.map(b => `<span>${b.innerHTML}</span>`).join(''); root.appendChild(hi);
+  const api = { i: btns.findIndex(b => b.getAttribute('aria-pressed') === 'true'), btns,
+    place(instant){ const b = btns[api.i]; if (instant) hi.style.transition = 'none';
+      if (!b) hi.style.clipPath = 'inset(0 50% 0 50% round 999px)';
+      else { const t = b.offsetTop, l = b.offsetLeft; hi.style.clipPath = `inset(${t}px ${root.clientWidth - l - b.offsetWidth}px ${root.clientHeight - t - b.offsetHeight}px ${l}px round 999px)`; }
+      if (instant){ void hi.offsetWidth; hi.style.transition = ''; } },
+    set(i, instant){ api.i = i; btns.forEach((b, j) => b.setAttribute('aria-pressed', j === i)); api.place(instant); } };
+  root.addEventListener('click', e => { const b = e.target.closest('button'); if (!b || b.parentNode !== root) return; const i = btns.indexOf(b); api.set(i, e.detail === 0); cb(i, e); });
+  segs.push(api); return api;
+}
+const toggle = (id, fn) => $(id).addEventListener('click', e => { const on = e.currentTarget.getAttribute('aria-pressed') !== 'true'; e.currentTarget.setAttribute('aria-pressed', on); fn(on); });
+function fit(cv){ const r = cv.getBoundingClientRect(), d = Math.min(2, devicePixelRatio || 1); cv.width = Math.max(1, Math.round(r.width * d)); cv.height = Math.max(1, Math.round(r.height * d)); return { w: r.width, h: r.height, d }; }
+function chip(c, x, y, ch, color, r = 11){ c.beginPath(); c.arc(x, y, r, 0, 7); c.fillStyle = color; c.fill(); c.fillStyle = '#000'; c.font = `700 ${Math.round(r * 1.2)}px ${UI}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.direction = 'ltr'; c.fillText(ch, x, y + .5); }
+function head(c, x0, y0, x1, y1, s, color){ const a = Math.atan2(y1 - y0, x1 - x0); c.beginPath(); c.moveTo(x1 + Math.cos(a) * s * .7, y1 + Math.sin(a) * s * .7); c.lineTo(x1 + Math.cos(a + 2.45) * s, y1 + Math.sin(a + 2.45) * s); c.lineTo(x1 + Math.cos(a - 2.45) * s, y1 + Math.sin(a - 2.45) * s); c.closePath(); c.fillStyle = color; c.fill(); }
+function seg2(c, x0, y0, x1, y1){ c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke(); }
+
+/* strip chart: the last few seconds of one or more signals */
+class Strip {
+  constructor(cv, o){
+    this.cv = cv; this.o = o; this.c = cv.getContext('2d'); this.rate = o.rate || 60; this.n = Math.round(o.win * this.rate);
+    this.buf = o.series.map(() => new Float32Array(this.n).fill(NaN)); this.h = 0; this.hover = null; this.tip = cv.parentElement.querySelector('.tip');
+    cv.addEventListener('pointermove', e => { const r = cv.getBoundingClientRect(); this.hover = e.clientX - r.left; });
+    cv.addEventListener('pointerleave', () => { this.hover = null; if (this.tip) this.tip.hidden = true; });
+    this.resize();
+  }
+  resize(){ const f = fit(this.cv); this.w = f.w; this.hh = f.h; this.d = f.d; }
+  push(v){ for (let i = 0; i < v.length; i++) this.buf[i][this.h] = v[i]; this.h = (this.h + 1) % this.n; }
+  clear(){ this.buf.forEach(b => b.fill(NaN)); }
+  draw(){
+    const { c, o, n } = this, W = this.w, H = this.hh; if (W < 20) return;
+    c.setTransform(this.d, 0, 0, this.d, 0, 0); c.clearRect(0, 0, W, H);
+    const fs = clamp(REM * .78, 11, 16), L = fs * 3, Rm = 6, Tm = 8, B = fs + 10, pw = W - L - Rm, ph = H - Tm - B, y0 = o.yMin, y1 = o.yMax;
+    const Y = v => Tm + (1 - (v - y0) / (y1 - y0)) * ph, X = i => L + i / (n - 1) * pw;
+    c.font = `${fs}px ${MONO}`; c.lineWidth = 1; c.textBaseline = 'middle'; c.textAlign = 'right'; c.direction = 'ltr';
+    for (let t = y0; t <= y1 + 1e-6; t += o.step){ const y = Math.round(Y(t)) + .5; c.strokeStyle = Math.abs(t) < 1e-6 ? 'rgba(255,255,255,.24)' : 'rgba(255,255,255,.09)'; seg2(c, L, y, W - Rm, y); c.fillStyle = L2; c.fillText(show(t, 0) + (o.unit || ''), L - 7, y); }
+    c.textBaseline = 'alphabetic';
+    for (let s = 0; s <= o.win; s += 4){ const x = L + pw * (1 - s / o.win); c.textAlign = s === 0 ? 'right' : 'center'; c.fillStyle = L2; c.fillText(s === 0 ? 'עכשיו' : `−${s}s`, x, H - 4); }
+    c.save(); c.beginPath(); c.rect(L, Tm - 2, pw + 2, ph + 4); c.clip(); c.lineJoin = 'round';
+    o.series.forEach((s, k) => { const b = this.buf[k]; c.strokeStyle = s.c; c.lineWidth = s.w || 2; c.setLineDash(s.dash || []); c.beginPath(); let pen = false;
+      for (let i = 0; i < n; i++){ const v = b[(this.h + i) % n]; if (v !== v){ pen = false; continue; } const x = X(i), y = Y(clamp(v, y0 - (y1 - y0), y1 + (y1 - y0))); if (pen) c.lineTo(x, y); else { c.moveTo(x, y); pen = true; } }
+      c.stroke(); });
+    c.setLineDash([]); c.restore();
+    if (this.hover !== null && this.tip){
+      const i = Math.round(clamp((this.hover - L) / pw, 0, 1) * (n - 1)), x = X(i); c.strokeStyle = 'rgba(255,255,255,.4)'; seg2(c, x, Tm, x, Tm + ph);
+      const parts = []; o.series.forEach((s, k) => { const v = this.buf[k][(this.h + i) % n]; if (v === v) parts.push(`${s.label} ${show(v, 1)}${o.unit || ''}`); });
+      this.tip.hidden = !parts.length; this.tip.textContent = `−${fmt((n - 1 - i) / this.rate, 1)}s · ` + parts.join(' · '); this.tip.style.left = clamp(x - 60, 0, Math.max(0, W - 250)) + 'px';
+    }
+  }
+}
+
+/* ================= sims ================= */
+let stage = null;
+function advance(sim, dt){ sim.acc += dt; let n = 0; while (sim.acc >= DT && n < 14){ sim.step(); sim.acc -= DT; n++; } if (n === 14) sim.acc = 0; }
+
+/* --- station 1: the challenge --- */
+const ch = { acc: 0, k: 0, s: makePlant(0), c: makePID(), par: { ...BASE }, g: { kp: 3, ki: 5, kd: .5 }, mode: 'pid', input: 0, u: 0, tAir: 0, best: 0, tGust: 1.2, tFall: 0, rnd: mulberry32(5),
+  step(){
+    this.k++; let kick = 0; this.tGust -= DT;
+    if (this.tGust <= 0 && this.mode !== 'fallen'){ this.tGust = 1.3 + this.rnd() * 1.5; const sg = this.rnd() < .5 ? -1 : 1; kick = sg * (70 + this.rnd() * 60); if (stage) stage.gust(sg); }
+    if (this.mode === 'manual'){ this.u = this.input * 35; this.tAir += DT; }
+    else if (this.mode === 'fallen'){ this.u = 0; this.tFall -= DT; if (this.tFall <= 0) this.set('pid'); }
+    else this.u = pidStep(this.c, this.g, 0, this.s.th, DT).u;
+    stepPlant(this.s, this.u, this.par, DT, kick);
+    if (this.mode === 'manual' && this.s.hit){ this.best = Math.max(this.best, this.tAir); this.tFall = 1.6; this.set('fallen'); }
+  },
+  set(m){
+    this.mode = m; const go = $('#chGo'), say = $('#chSay');
+    if (m === 'manual'){ this.tAir = 0; this.c = makePID(); go.textContent = 'תנו לבקר'; say.innerHTML = '<b>אתם על ההגה.</b> גררו ימינה ושמאלה, או החזיקו את מקשי החצים.'; }
+    else if (m === 'fallen'){ go.textContent = 'אני מחזיק/ה'; say.innerHTML = `<b>נפל אחרי <span class="num">${fmt(this.tAir)}</span> שניות.</b> הבקר חוזר לתפקיד.`; }
+    else { this.c = makePID(); go.textContent = 'אני מחזיק/ה'; if (this.tAir === 0) say.textContent = 'כרגע בקר PID מחזיק אותו ישר, גם כשהרוח מכה.'; else say.innerHTML = `<b>הבקר מחזיק.</b> הוא מודד ומתקן 240 פעמים בשנייה. אתם החזקתם <span class="num">${fmt(this.tAir)}</span> שניות.`; }
+  },
+  paint(){ $('#chT').textContent = fmt(this.tAir); $('#chBest').textContent = fmt(this.best); },
+};
+{
+  const pad = $('#pad'), knob = $('#knob'); let drag = false;
+  const setIn = v => { ch.input = clamp(v, -1, 1); const half = pad.clientWidth / 2 - knob.offsetWidth / 2 - 4; knob.style.transform = `translateX(${fmt(ch.input * half)}px)`; pad.setAttribute('aria-valuenow', Math.round(ch.input * 100)); };
+  const fromEv = e => { const r = pad.getBoundingClientRect(); setIn((e.clientX - (r.left + r.width / 2)) / (r.width / 2 - 30)); };
+  pad.addEventListener('pointerdown', e => { if (drag) return; drag = true; pad.setPointerCapture(e.pointerId); pad.classList.add('drag'); if (ch.mode !== 'manual') ch.set('manual'); fromEv(e); });
+  pad.addEventListener('pointermove', e => { if (drag) fromEv(e); });
+  const end = () => { if (!drag) return; drag = false; pad.classList.remove('drag'); setIn(0); };
+  pad.addEventListener('pointerup', end); pad.addEventListener('pointercancel', end);
+  pad.addEventListener('keydown', e => { if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return; e.preventDefault(); pad.classList.add('drag'); if (ch.mode !== 'manual') ch.set('manual'); setIn(e.key === 'ArrowRight' ? 1 : -1); });
+  pad.addEventListener('keyup', e => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight'){ setIn(0); pad.classList.remove('drag'); } });
+  $('#chGo').addEventListener('click', () => { if (ch.mode === 'manual') ch.set('pid'); else { ch.set('manual'); pad.focus({ preventScroll: true }); } });
+}
+
+/* --- station 2: one lap of the loop, in slow motion --- */
+const LP_D = [.85, .85, 1.15], LP_CHUNK = .08; // seconds on screen per step, and how much real time the "correct" step covers
+const lp = { s: makePlant(0), c: makePID(), g: { kp: 3, ki: 0, kd: .5 }, real: false, phase: 0, tp: 0, lap: 0, meas: 0, from: 0, e: 0, u: 0, uNow: 0, acc: 0, tGust: 0, sg: 1, cycles: 0, hit: 0,
+  ctl(){ this.uNow = pidStep(this.c, this.g, 0, this.s.th, DT).u; return this.uNow; },
+  run(t){ this.acc += t; let n = 0; while (this.acc >= DT && n < 30){ stepPlant(this.s, this.ctl(), BASE, DT); this.acc -= DT; n++; } },
+  gust(){ this.sg *= -1; stepPlant(this.s, this.uNow, BASE, DT, 150 * this.sg); for (let i = 0; i < 12; i++) stepPlant(this.s, this.ctl(), BASE, DT); if (stage) stage.gust(this.sg); this.lap = 0; this.hit = Math.abs(this.s.th); },
+  tick(dt){
+    if (this.real){ this.tGust -= dt; if (this.tGust <= 0){ this.tGust = 1.8; this.gust(); } this.run(dt); this.cycles += dt * 240; this.meas = this.s.th; this.e = -this.s.th; this.u = this.uNow; return; }
+    this.tp += dt; const D = LP_D[this.phase];
+    if (this.phase === 2) this.run(dt * LP_CHUNK / D);
+    if (this.tp < D) return;
+    this.tp = 0; this.phase = (this.phase + 1) % 3;
+    if (this.phase === 0){ if (Math.abs(this.s.th) < .6) this.gust(); else this.lap++; this.from = this.meas; this.meas = this.s.th; this.text(); }
+    else if (this.phase === 1){ this.e = -this.meas; this.u = this.ctl(); }
+  },
+  text(){
+    const say = $('#lpSay');
+    if (this.real) say.innerHTML = '<b>במהירות אמיתית</b> אי אפשר לראות את הצעדים. משב הרוח נבלם לפני שהעין קולטת אותו.';
+    else if (!this.lap) say.innerHTML = `<b>משב רוח</b> הטה את הרחפן ב-<span class="num">${fmt(this.hit)}°</span>. עכשיו הלולאה מתחילה לעבוד.`;
+    else say.innerHTML = `<b>סיבוב ${this.lap + 1}:</b> השגיאה ירדה מ-<span class="num">${fmt(Math.abs(this.from))}°</span> ל-<span class="num">${fmt(Math.abs(this.meas))}°</span>.`;
+  },
+  hot(i){ return this.real ? 1 : (i === this.phase ? 1 : 0); },
+  paint(){
+    $$('#steps li').forEach((li, i) => li.classList.toggle('on', this.real || i === this.phase));
+    const u = this.real || this.phase === 2 ? this.uNow : this.u;
+    $('#lpA').textContent = show(this.meas) + '°'; $('#lpB').textContent = 'e = ' + show(this.e) + '°'; $('#lpC').textContent = `${Math.round(50 + u / 2)}% · ${Math.round(50 - u / 2)}%`;
+    if (this.real) $('#lpLead').textContent = `מאז שעברתם למהירות אמיתית הבקר השלים ${big(this.cycles)} סיבובים.`;
+  },
+};
+const lpSeg = segmented($('#lpSeg'), i => { lp.real = i === 1; lp.cycles = 0; lp.tGust = .9; lp.phase = 0; lp.tp = 0; if (!lp.real) $('#lpLead').textContent = 'הבקר חוזר על שלושת הצעדים האלה 240 פעמים בשנייה. כאן הם בהילוך איטי.'; lp.text(); });
+$('#lpGust').addEventListener('click', () => { lp.gust(); lp.phase = 0; lp.tp = 0; lp.from = lp.meas; lp.meas = lp.s.th; lp.tGust = 1.8; lp.text(); });
+
+/* --- station 3: the PID lab --- */
+const PRESETS = {
+  p:    { g: [2, 0, 0],    load: false, say: '<b>רק P:</b> מתקן לפי הפער של עכשיו. הוא חוצה את היעד, חוזר, ושוב. אין מה שיבלום את התנופה, אז הוא לא נרגע.' },
+  pd:   { g: [3, 0, .45],  load: false, say: '<b>הוספנו D:</b> הוא מסתכל לאן הזווית הולכת ובולם מראש. הרחפן נרגע מהר, אבל עוצר קצת יותר ממעלה אחרי היעד ונשאר שם.' },
+  load: { g: [3, 0, .45],  load: true,  say: '<b>מטען בצד אחד:</b> הפער גדל לכ-4.5°. כדי להחזיק נגד המטען צריך כוח קבוע, ו-P נותן כוח רק כשיש שגיאה.' },
+  pid:  { g: [3, 5, .5],   load: true,  say: '<b>הוספנו I:</b> הוא צובר את השטח שבין היעד לזווית ודוחף עד שהפער נעלם. המחיר: חריגה גדולה יותר בדרך.' },
+  wild: { g: [7, 0, .05],  load: false, say: '<b>יותר מדי P:</b> המנועים מגיעים לרוויה והרחפן מיטלטל מצד לצד. תיקון חזק מדי גרוע כמו תיקון חלש מדי.' },
+};
+const lab = { acc: 0, k: 0, s: makePlant(0), c: makePID(), par: { ...BASE, d: 0 }, g: { kp: 2, ki: 0, kd: 0 }, sp: 15, spNext: null, tStep: 0, noise: false, rnd: mulberry32(9), kick: 0, gs: 1,
+  out: { u: 0, P: 0, I: 0, D: 0, e: 0, sat: false }, sat: 0,
+  step(){
+    this.k++;
+    if (this.spNext !== null){ this.tStep -= DT; if (this.tStep <= 0){ this.sp = this.spNext; this.spNext = null; } }
+    const y = this.s.th + (this.noise ? .3 * gauss(this.rnd) : 0);
+    this.out = pidStep(this.c, this.g, this.sp, y, DT);
+    stepPlant(this.s, this.out.u, this.par, DT, this.kick); this.kick = 0;
+    this.sat += ((Math.abs(this.out.P + this.out.I + this.out.D) > 100 ? 1 : 0) - this.sat) * DT / .12;
+    if (this.k % 4 === 0) labPlot.push(this.sp, this.s.th);
+  },
+  restart(){ this.s = makePlant(0); this.c = makePID(); this.sp = 0; this.spNext = 15; this.tStep = .45; this.sat = 0; labPlot.clear(); $('#spB').setAttribute('aria-pressed', 'true'); },
+  paint(){
+    const o = this.out, g = this.g;
+    $('#vP').textContent = g.kp ? pct(o.P) : 'כבוי'; $('#vI').textContent = g.ki ? pct(o.I) : 'כבוי'; $('#vD').textContent = g.kd ? pct(o.D) : 'כבוי';
+    $('#tmP').classList.toggle('off', !g.kp); $('#tmI').classList.toggle('off', !g.ki); $('#tmD').classList.toggle('off', !g.kd);
+    labPlot.draw();
+  },
+};
+// the lab's chart puts "now" near the right edge and leaves room for the future, so each term can be drawn where it gets its information
+const labPlot = { cv: $('#labChart'), n: 360, sp: new Float32Array(360).fill(NaN), th: new Float32Array(360).fill(NaN), h: 0, w: 0, hh: 0, d: 1,
+  resize(){ const f = fit(this.cv); this.w = f.w; this.hh = f.h; this.d = f.d; },
+  push(sp, th){ this.sp[this.h] = sp; this.th[this.h] = th; this.h = (this.h + 1) % this.n; },
+  clear(){ this.sp.fill(NaN); this.th.fill(NaN); },
+  draw(){
+    const c = this.cv.getContext('2d'), W = this.w, H = this.hh; if (W < 40) return;
+    c.setTransform(this.d, 0, 0, this.d, 0, 0); c.clearRect(0, 0, W, H);
+    const fs = clamp(REM * .78, 11, 16), L = fs * 3, Rm = 4, Tm = fs * 1.7, B = fs * 1.8, pw = W - L - Rm, ph = H - Tm - B, PAST = 6, FUT = 1.35, y0 = -10, y1 = 35, n = this.n, last = n - 1;
+    const X = t => L + (t + PAST) / (PAST + FUT) * pw, Y = v => Tm + (1 - (v - y0) / (y1 - y0)) * ph, xn = X(0), T = i => -(last - i) / 60, at = (b, i) => b[(this.h + i) % n];
+    const spN = at(this.sp, last), thN = at(this.th, last), g = lab.g, live = thN === thN;
+    c.fillStyle = 'rgba(255,255,255,.05)'; c.fillRect(xn, Tm, W - Rm - xn, ph);
+    c.font = `${fs}px ${MONO}`; c.lineWidth = 1; c.textBaseline = 'middle'; c.textAlign = 'right'; c.direction = 'ltr';
+    for (let v = -10; v <= 30; v += 10){ const y = Math.round(Y(v)) + .5; c.strokeStyle = v === 0 ? 'rgba(255,255,255,.24)' : 'rgba(255,255,255,.09)'; seg2(c, L, y, W - Rm, y); c.fillStyle = L2; c.fillText(show(v, 0) + '°', L - 7, y); }
+    c.save(); c.beginPath(); c.rect(L, Tm, pw, ph); c.clip(); c.lineJoin = 'round'; c.lineCap = 'round';
+    let first = -1; for (let i = 0; i < n; i++) if (at(this.th, i) === at(this.th, i)){ first = i; break; }
+    if (first >= 0){
+      if (g.ki > 0){ c.beginPath(); for (let i = first; i <= last; i++){ const x = X(T(i)), y = Y(at(this.th, i)); if (i === first) c.moveTo(x, y); else c.lineTo(x, y); } for (let i = last; i >= first; i--) c.lineTo(X(T(i)), Y(at(this.sp, i))); c.closePath(); c.fillStyle = 'rgba(179,143,24,.42)'; c.fill(); }
+      c.strokeStyle = L2; c.lineWidth = 1.5; c.setLineDash([6, 5]); c.beginPath(); for (let i = first; i <= last; i++){ const x = X(T(i)), y = Y(at(this.sp, i)); if (i === first) c.moveTo(x, y); else c.lineTo(x, y); } c.lineTo(X(FUT), Y(spN)); c.stroke(); c.setLineDash([]);
+      c.strokeStyle = LABEL; c.lineWidth = 2.5; c.beginPath(); for (let i = first; i <= last; i++){ const x = X(T(i)), y = Y(clamp(at(this.th, i), y0 - 20, y1 + 20)); if (i === first) c.moveTo(x, y); else c.lineTo(x, y); } c.stroke();
+    }
+    let dEnd = null;
+    if (live && g.kd > 0){ const sl = lab.c.dF; let t1 = FUT * .8; if (sl > 0) t1 = Math.min(t1, (y1 - 1 - thN) / sl); else if (sl < 0) t1 = Math.min(t1, (y0 + 1 - thN) / sl); t1 = Math.max(.04, t1);
+      dEnd = [X(t1), Y(thN + sl * t1)]; c.strokeStyle = CD; c.lineWidth = 3; c.setLineDash([7, 6]); seg2(c, xn, Y(thN), dEnd[0], dEnd[1]); c.setLineDash([]); head(c, xn, Y(thN), dEnd[0], dEnd[1], 9, CD); }
+    if (live && g.kp > 0){ c.strokeStyle = CP; c.lineWidth = 6; seg2(c, xn, Y(clamp(thN, y0, y1)), xn, Y(spN)); }
+    c.restore();
+    c.strokeStyle = 'rgba(255,255,255,.38)'; c.lineWidth = 1; seg2(c, Math.round(xn) + .5, Tm, Math.round(xn) + .5, Tm + ph);
+    if (live){ c.fillStyle = LABEL; c.beginPath(); c.arc(xn, Y(clamp(thN, y0, y1)), 4.5, 0, 7); c.fill();
+      if (g.kp > 0) chip(c, xn - 17, (Y(clamp(thN, y0, y1)) + Y(spN)) / 2, 'P', CP, 10);
+      if (g.ki > 0 && first >= 0){ const i = Math.max(first, last - 150); chip(c, X(T(i)), clamp((Y(at(this.th, i)) + Y(at(this.sp, i))) / 2, Tm + 12, Tm + ph - 12), 'I', CI, 10); }
+      if (dEnd) chip(c, clamp(dEnd[0] + 4, xn + 14, W - Rm - 11), clamp(dEnd[1] - 16, Tm + 11, Tm + ph - 11), 'D', CD, 10); }
+    c.font = `600 ${fs * 1.1}px ${UI}`; c.textBaseline = 'alphabetic'; c.direction = 'rtl'; c.fillStyle = L2;
+    c.textAlign = 'left'; c.fillText('עבר', L + 6, Tm - 6); c.textAlign = 'center'; c.fillText('עכשיו', xn, Tm - 6); c.fillText('עתיד', (xn + W - Rm) / 2 + 8, H - 5);
+    c.font = `${fs}px ${MONO}`; c.direction = 'ltr'; c.textAlign = 'center'; for (const s of [6, 4, 2]) c.fillText(`−${s}s`, Math.max(X(-s), L + fs * 1.2), H - 5);
+  } };
+const sliders = { kp: [$('#kp'), $('#kpO'), 1], ki: [$('#ki'), $('#kiO'), 1], kd: [$('#kd'), $('#kdO'), 2] };
+function syncSlider(el, out, dec){ const v = +el.value; out.textContent = fmt(v, dec); el.style.setProperty('--pct', ((v - el.min) / (el.max - el.min) * 100) + '%'); }
+for (const k in sliders){ const [el, out, dec] = sliders[k]; el.addEventListener('input', () => { lab.g[k] = +el.value; syncSlider(el, out, dec); presetSeg.set(-1); $('#labSay').innerHTML = '<b>כוונון ידני:</b> הזיזו מחוון אחד בכל פעם, ולחצו ״משב רוח״ כדי לראות איך כל איבר מגיב.'; }); }
+function setGains(g){ ['kp', 'ki', 'kd'].forEach((k, i) => { lab.g[k] = g[i]; const [el, out, dec] = sliders[k]; el.value = g[i]; syncSlider(el, out, dec); }); }
+function setLoad(on){ lab.par.d = on ? 220 : 0; $('#loadB').setAttribute('aria-pressed', on); }
+const PNAMES = Object.keys(PRESETS);
+function applyPreset(name){ const p = PRESETS[name]; setGains(p.g); setLoad(p.load); lab.noise = false; $('#noiseB').setAttribute('aria-pressed', 'false'); $('#labSay').innerHTML = p.say; lab.restart(); }
+const presetSeg = segmented($('#presets'), i => applyPreset(PNAMES[i]));
+$('#gustB').addEventListener('click', () => { lab.gs *= -1; lab.kick = 150 * lab.gs; if (stage) stage.gust(lab.gs); });
+toggle('#spB', on => { lab.spNext = null; lab.sp = on ? 15 : 0; });
+toggle('#loadB', on => setLoad(on));
+toggle('#noiseB', on => { lab.noise = on; if (on) $('#labSay').innerHTML = '<b>רעש בחיישן:</b> הביטו בחץ הוורוד. נגזרת מגדילה כל קפיצה קטנה במדידה, והמנועים רועדים. לכן מסננים את D, או מוותרים עליו.'; });
+const tune = $('#tune'), tuneB = $('#tuneB');
+function setTune(on){ if (on){ const b = tuneB.getBoundingClientRect(), p = tune.getBoundingClientRect(); tune.style.transformOrigin = `${fmt(b.left + b.width / 2 - p.left)}px 100%`; } tune.classList.toggle('on', on); tuneB.setAttribute('aria-expanded', on); }
+tuneB.addEventListener('click', () => setTune(!tune.classList.contains('on')));
+addEventListener('pointerdown', e => { if (tune.classList.contains('on') && !tune.contains(e.target) && !tuneB.contains(e.target)) setTune(false); });
+
+/* --- station 4: fixed gains vs a single neuron that retunes them in flight --- */
+const G0 = { kp: 3, ki: 0, kd: .45 };
+const adChart = new Strip($('#adChart'), { win: 12, yMin: -5, yMax: 25, step: 10, unit: '°', series: [{ c: L2, dash: [6, 5], w: 1.5, label: 'יעד' }, { c: L2, w: 1.5, label: 'קבוע' }, { c: CAI, w: 3, label: 'לומד' }] });
+const GN = gsBest(0, 1); // the gains an engineer would pick for a full battery and no load
+const ad = { acc: 0, k: 0, t: 0, r: 0, sa: makePlant(0), sb: makePlant(0), pid: makePID(), pidB: makePID(), nn: makeNeuron(G0), par: { ...BASE }, ua: 0, ub: 0, ea: 0, eb: 0, last: '', mode: 'pre', rate: 1, gB: { ...GN },
+  step(){
+    this.k++; this.t += DT; const tgt = (this.t % 4) < 2 ? 15 : 0; this.r += (tgt - this.r) * DT / .15;
+    const pre = this.mode === 'pre', a = pidStep(this.pid, pre ? GN : G0, this.r, this.sa.th, DT); stepPlant(this.sa, a.u, this.par, DT);
+    const b = pre ? pidStep(this.pidB, this.gB, this.r, this.sb.th, DT) : neuronStep(this.nn, { p: .05 * this.rate, i: 1.5 * this.rate, d: .001 * this.rate }, this.r, this.sb.th, DT); stepPlant(this.sb, b.u, this.par, DT);
+    this.ua = a.u; this.ub = b.u; const al = DT / 3;
+    this.ea += ((this.r - this.sa.th) ** 2 - this.ea) * al; this.eb += ((this.r - this.sb.th) ** 2 - this.eb) * al;
+    if (this.k % 4 === 0) adChart.push([this.r, this.sa.th, this.sb.th]);
+  },
+  reset(){ this.sa = makePlant(0); this.sb = makePlant(0); this.pid = makePID(); this.pidB = makePID(); this.nn = makeNeuron(G0); this.t = 0; this.r = 0; this.ea = this.eb = 0; adChart.clear(); },
+  paint(){
+    this.gB = gs.gains(); if (this.mode === 'pre'){ gs.ui(); gs.paint(); return; }
+    const n = this.nn;
+    $('#wP').setAttribute('stroke-width', fmt(clamp(1 + n.kp * .55, 1, 11), 2)); $('#wI').setAttribute('stroke-width', fmt(clamp(1 + n.ki * 1.1, 1, 11), 2)); $('#wD').setAttribute('stroke-width', fmt(clamp(1 + n.kd * 6, 1, 11), 2));
+    $('#tP').textContent = 'Kp ' + fmt(n.kp, 1); $('#tI').textContent = 'Ki ' + fmt(n.ki, 1); $('#tD').textContent = 'Kd ' + fmt(n.kd, 2);
+    const load = this.par.d > 0, batt = this.par.eff < 1, key = (load ? 'L' : '') + (batt ? 'B' : '') + fmt(n.kp, 1) + fmt(n.ki, 1);
+    if (key !== this.last){ this.last = key; const say = $('#adSay');
+      if (load && batt) say.innerHTML = `<b>מטען וסוללה חלשה יחד:</b> הנוירון כבר הגיע ל-<span class="num">Kp ${fmt(n.kp, 1)}</span> ו-<span class="num">Ki ${fmt(n.ki, 1)}</span>. המקדמים הקבועים נשארו כמו שכווננו בבוקר.`;
+      else if (load) say.innerHTML = `<b>מטען בצד:</b> הרחפן הקבוע נשאר רחוק מהיעד. הנוירון מגדיל את <span class="num">Ki</span> מאפס ל-<span class="num">${fmt(n.ki, 1)}</span> וסוגר את הפער.`;
+      else if (batt) say.innerHTML = `<b>סוללה חלשה:</b> המנועים נותנים 55% מהכוח. הנוירון מעלה את <span class="num">Kp</span> ל-<span class="num">${fmt(n.kp, 1)}</span> כדי לפצות.`;
+      else say.innerHTML = '<b>בלי הפרעה</b> שניהם עוקבים אחרי היעד. לחצו ״מטען בצד״ וחכו כמה שניות.'; }
+    adChart.draw();
+  },
+};
+toggle('#adLoad', on => { ad.par.d = on ? 220 : 0; gs.ui(); });
+toggle('#adBatt', on => { ad.par.eff = on ? .55 : 1; gs.ui(); });
+toggle('#adFast', on => { ad.rate = on ? 8 : 1; });
+$('#adReset').addEventListener('click', () => { ad.reset(); if (ad.mode === 'pre') gs.reset(); });
+const gvSeg = segmented($('#gvSeg'), i => { $('#gvLead').textContent = i ? 'גישה אחרת, בלי אימון מראש: המקדמים הם שלושת המשקלים של נוירון אחד, והוא מעדכן אותם תוך כדי טיסה.' : 'PID שכוונן לסוללה מלאה מתקשה כשהתנאים משתנים. רשת קטנה לומדת איזה מקדמים מתאימים לכל מצב.'; ad.mode = i ? 'online' : 'pre'; $('#gv0').hidden = !!i; $('#gv1').hidden = !i; $('#gsGo').hidden = !!i; $('#adFast').hidden = !i; ad.reset(); ad.last = ''; resizeAll(); });
+
+/* --- station 4, first view: collect examples in the simulator, then train a small network on them by gradient descent --- */
+const GS_N = GS_D.length * GS_E.length, GS_EP = 1500;
+const gs = { state: 'idle', X: [], Y: [], T: [], i: 0, acc: 0, net: gsNet(), ep: 0, f: null, last: '',
+  reset(){ Object.assign(this, { state: 'idle', X: [], Y: [], T: [], i: 0, acc: 0, net: gsNet(), ep: 0 }); this.ui(); },
+  go(){ if (this.state === 'idle'){ this.state = 'data'; this.acc = 0; } else if (this.state === 'ready'){ this.state = 'train'; this.acc = 0; } this.ui(); },
+  tick(dt){
+    if (this.state === 'data'){ this.acc += dt;
+      while (this.acc >= .07 && this.i < GS_N){ this.acc -= .07; const d = GS_D[this.i % GS_D.length], e = GS_E[Math.floor(this.i / GS_D.length)], g = gsBest(d, e); this.T.push(g); this.X.push(gsIn(d, e)); this.Y.push([g.kp / GS_MAX.kp, g.ki / GS_MAX.ki, g.kd / GS_MAX.kd]); this.i++; }
+      if (this.i >= GS_N) this.state = 'ready'; this.ui(); }
+    else if (this.state === 'train'){ this.acc += dt * 330; let n = 0;
+      while (this.acc >= 1 && this.ep < GS_EP && n < 40){ this.acc -= 1; gsEpoch(this.net, this.X, this.Y); this.ep++; n++; }
+      if (this.ep >= GS_EP) this.state = 'done'; this.ui(); }
+  },
+  trained(){ return this.state === 'train' || this.state === 'done'; },
+  gains(){ return this.trained() ? gsOut(gsFwd(this.net, gsIn(ad.par.d, ad.par.eff)).y) : { ...GN }; },
+  ui(){
+    const st = this.state, idx = { idle: -1, data: 0, ready: 1, train: 1, done: 2 }[st], go = $('#gsGo');
+    $$('#gsSteps li').forEach((li, j) => { li.classList.toggle('on', j === idx && st !== 'done' || (st === 'done' && j === 2)); li.classList.toggle('done', j < idx || (st === 'ready' && j === 0)); });
+    go.textContent = { idle: 'אספו דוגמאות', data: 'אוספים…', ready: 'אמנו את הרשת', train: 'מאמנים…', done: 'הרשת מאומנת' }[st];
+    go.disabled = st === 'data' || st === 'train' || st === 'done'; go.classList.toggle('primary', st === 'idle' || st === 'ready');
+    $('#gsO0').textContent = `${this.i} / ${GS_N}`;
+    $('#gsO1').textContent = this.ep ? `${show(Math.sqrt(this.net.loss) * 100, 1)}%` : '–';
+    const g = ad.gB, load = ad.par.d > 0, batt = ad.par.eff < 1;
+    $('#gsO2').textContent = st === 'done' ? `Kp ${fmt(g.kp, 1)} · Ki ${fmt(g.ki, 1)} · Kd ${fmt(g.kd, 2)}` : '–';
+    const key = st + (load ? 'L' : '') + (batt ? 'B' : ''); if (key === this.last) return; this.last = key; const say = $('#gsSay');
+    if (st === 'idle') say.innerHTML = 'בשני הרחפנים אותו PID. לאחד מקדמים קבועים שכוונו לסוללה מלאה ובלי מטען. לשני הרשת תבחר מקדמים, אחרי שנאמן אותה.';
+    else if (st === 'data') say.innerHTML = '<b>אוספים דוגמאות:</b> לכל שילוב של מטען וסוללה הסימולטור מנסה מקדמים שונים ושומר את הטובים. זו העבודה שמהנדס עושה ביד, מצב אחרי מצב.';
+    else if (st === 'ready') say.innerHTML = `<b>${GS_N} דוגמאות מוכנות.</b> עכשיו רשת של 8 נוירונים ו-51 משקלים תלמד לחקות אותן.`;
+    else if (st === 'train') say.innerHTML = '<b>אימון:</b> בכל סבב הרשת מנחשת את כל התשובות, מחשבת כמה טעתה, ומזיזה כל משקל קצת בכיוון שמקטין את הטעות. זו ירידה בגרדיאנט, אותו עיקרון שמאמן גם רשתות ענק.';
+    else if (!load && !batt) say.innerHTML = '<b>הרשת מאומנת.</b> לחצו ״מטען בצד״ או ״סוללה חלשה״ ושימו לב למקדמים שהיא בוחרת.';
+    else say.innerHTML = '<b>מצב שלא היה בדוגמאות:</b> הצלב נופל בין הריבועים במפה, והרשת משלימה את מה שביניהם. הרחפן הקבוע נשאר עם המקדמים של הבוקר.';
+  },
+  resize(){ this.f = fit($('#gsMap')); },
+  paint(){
+    const f = this.f, cv = $('#gsMap'); if (!f || f.w < 60) return; const c = cv.getContext('2d'), W = f.w, H = f.h, nc = GS_D.length, nr = GS_E.length;
+    c.setTransform(f.d, 0, 0, f.d, 0, 0); c.clearRect(0, 0, W, H);
+    const fs = clamp(REM * .8, 11, 16), top = fs * 2, gap = fs * 1.2, cs = Math.min((W - 2 * gap) / 3 / nc, (H - top - 2) / nr), pw = cs * nc, x0 = (W - 3 * pw - 2 * gap) / 2;
+    const keys = ['kp', 'ki', 'kd'], cols = [[35, 137, 226], [179, 143, 24], [212, 73, 150]], names = ['Kp', 'Ki', 'Kd'], live = this.trained(), cur = ad.gB;
+    const pred = live ? this.X.map(x => gsOut(gsFwd(this.net, x).y)) : null;
+    const rr = (x, y, w, h, r) => { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); };
+    keys.forEach((k, q) => {
+      const px = x0 + q * (pw + gap), [R, G, B] = cols[q], fill = v => `rgba(${R},${G},${B},${fmt(.1 + .9 * clamp(v / GS_MAX[k], 0, 1), 3)})`;
+      chip(c, px + fs * .7, fs * .8, names[q][1].toUpperCase(), `rgb(${R},${G},${B})`, fs * .7);
+      c.font = `600 ${fs}px ${MONO}`; c.fillStyle = LABEL; c.textAlign = 'left'; c.textBaseline = 'middle'; c.direction = 'ltr'; c.fillText(names[q] + (this.state === 'done' ? ' ' + fmt(cur[k], k === 'kd' ? 2 : 1) : ''), px + fs * 1.7, fs * .8);
+      for (let r = 0; r < nr; r++) for (let j = 0; j < nc; j++){
+        const n = r * nc + j, x = px + j * cs, y = top + r * cs;
+        rr(x + 1.5, y + 1.5, cs - 3, cs - 3, 3); c.fillStyle = n < this.i ? fill(this.T[n][k]) : 'rgba(120,120,128,.12)'; c.fill();
+        if (pred){ c.beginPath(); c.arc(x + cs / 2, y + cs / 2, cs * .24, 0, 7); c.fillStyle = '#000'; c.fill(); c.beginPath(); c.arc(x + cs / 2, y + cs / 2, cs * .24, 0, 7); c.fillStyle = fill(pred[n][k]); c.fill(); }
+      }
+      const cx = px + (ad.par.d / 60 + .5) * cs, cy = top + ((1 - ad.par.eff) / .1 + .5) * cs; c.strokeStyle = LABEL; c.lineWidth = 1.5;
+      seg2(c, cx - cs * .5, cy, cx - cs * .2, cy); seg2(c, cx + cs * .2, cy, cx + cs * .5, cy); seg2(c, cx, cy - cs * .5, cx, cy - cs * .2); seg2(c, cx, cy + cs * .2, cx, cy + cs * .5);
+    });
+  },
+};
+$('#gsGo').addEventListener('click', () => gs.go());
+
+/* --- station 5: a field of drones learns by trial and error, all at once --- */
+const SWN = 240, SWL = { cols: 15, rows: 16, dx: 2.3, dz: 2.5, s: .55 }; // narrow and deep, so the field stays left of the text
+const swPos = (() => { const px = new Float32Array(SWN), pz = new Float32Array(SWN), slots = Array.from({ length: SWN }, (_, i) => i), rnd = mulberry32(11);
+  for (let i = SWN - 1; i > 0; i--){ const j = Math.floor(rnd() * (i + 1)); [slots[i], slots[j]] = [slots[j], slots[i]]; }
+  for (let a = 0; a < SWN; a++){ px[a] = (slots[a] % SWL.cols - SWL.cols / 2) * SWL.dx; pz[a] = (Math.floor(slots[a] / SWL.cols) - SWL.rows / 2) * SWL.dz; }
+  return { px, pz }; })();
+const sw = { pop: null, state: 'idle', acc: 0, tSel: 0, par: { ...BASE }, kicks: new Float64Array(SWN), wave: null, waved: new Uint8Array(SWN), air: 0, lean: 0, wv: new Float32Array(NPAR), bars: null, net: null,
+  init(){ this.pop = makePop(SWN, 1); this.pop.alpha = .1; this.pop.sigma = .15; for (let a = 0; a < SWN; a++) this.pop.th[a] = 0; this.state = 'idle'; this.acc = 0; this.par.d = 0; this.wave = null; this.air = 0; $('#swWind').setAttribute('aria-pressed', 'false'); this.ui(); },
+  tick(dt){
+    const p = this.pop;
+    if (this.state === 'run'){
+      this.acc += dt * 2; let n = 0;
+      while (this.acc >= DT && n < 40){ this.acc -= DT; n++; if (popStep(p, BASE)){ popEnd(p); this.state = 'select'; this.tSel = .8; this.acc = 0; this.ui(); break; } }
+      if (n === 40) this.acc = 0;
+    } else if (this.state === 'select'){
+      this.tSel -= dt;
+      if (this.tSel <= 0){ const h = p.hist, g = h.length; if ((g >= 2 && h[g - 1] >= .99 && h[g - 2] >= .99) || g >= 24){ p.explore = false; popReset(p); this.state = 'done'; } else { popReset(p); this.state = 'run'; } this.ui(); }
+    } else if (this.state === 'done'){
+      this.acc += dt; let n = 0;
+      while (this.acc >= DT && n < 14){ this.acc -= DT; n++; const K = this.kicks; K.fill(0);
+        if (Math.random() < .12) K[Math.floor(Math.random() * SWN)] = (Math.random() < .5 ? -1 : 1) * (40 + Math.random() * 50);   // light, uneven air so the field never looks frozen
+        if (this.wave){ const w = this.wave; w.x += 46 * DT; let left = 0; for (let a = 0; a < SWN; a++){ if (this.waved[a]) continue; if (swPos.px[a] < w.x){ K[a] = w.sg * (120 + Math.random() * 40); this.waved[a] = 1; } else left++; } if (!left) this.wave = null; }
+        popStep(p, this.par, K, true); }
+      if (n === 14) this.acc = 0;
+    }
+    let air = 0, lean = 0; for (let a = 0; a < SWN; a++){ air += p.alive[a]; lean += p.th[a]; } this.air = air / SWN; this.lean += (lean / SWN - this.lean) * Math.min(1, dt * 4);
+  },
+  gust(){ if (this.state !== 'done') return; this.waved.fill(0); this.wave = { x: -SWL.cols / 2 * SWL.dx - 3, sg: this.wave ? -this.wave.sg : 1 }; this.lastSg = -(this.lastSg || -1); this.wave.sg = this.lastSg; },
+  ui(){
+    const p = this.pop, go = $('#swGo'), done = this.state === 'done', idle = this.state === 'idle', hold = this.state === 'hold', say = $('#swSay'), g = p.hist.length;
+    go.textContent = done ? 'האימון הסתיים' : hold ? 'המשיכו אימון' : idle ? 'התחילו אימון' : 'עצרו'; go.disabled = done; go.classList.toggle('primary', !done);
+    $('#swGust').disabled = !done; $('#swWind').disabled = !done;
+    if (done){ $('#cmpCr').textContent = big(p.crashes);
+      if (this.par.d) say.innerHTML = '<b>רוח צד שלא הייתה באימון:</b> כל השדה נוטה ונשאר נטוי. לרשת אין זיכרון של שגיאה שנצברת. ל-PID יש את I בדיוק בשביל זה.';
+      else say.innerHTML = `<b>כולם באוויר אחרי ${g} דורות</b> ו-<span class="num">${big(p.crashes)}</span> התרסקויות. על חומרה אמיתית אלה ${big(p.crashes)} רחפנים שבורים, ולכן מאמנים בסימולטור.`; }
+    else if (idle) say.textContent = 'לפני האימון המשקלים אקראיים. הרשת לא מכירה פיזיקה ולא נוסחה: היא מקבלת זווית וקצב סיבוב, ומחזירה פקודה למנועים.';
+    else say.innerHTML = `<b>דור ${Math.max(1, this.state === 'run' ? g + 1 : g)}:</b> כל רחפן מנסה גרסה קצת אחרת של המשקלים. אדום: התרסק. לבן: הגרסאות שהדור הבא ילמד מהן.`;
+  },
+  paint(dt){
+    const p = this.pop, g = p.hist.length, run = this.state === 'run';
+    $('#swGen').textContent = this.state === 'idle' ? '0' : String(run ? g + 1 : g);
+    $('#swSurv').textContent = this.state === 'idle' ? '–' : Math.round((this.state === 'select' ? p.hist[g - 1] : this.air) * 100) + '%';
+    $('#swCr').textContent = big(p.crashes);
+    if (this.state === 'done' && this.par.d){ const v = $('#swSurv'); v.textContent = show(Math.abs(this.lean), 1) + '°'; v.nextElementSibling.textContent = 'נטייה מהיעד'; } else $('#swSurv').nextElementSibling.textContent = 'נשארו באוויר';
+    const k = 1 - Math.exp(-dt * 6); for (let j = 0; j < NPAR; j++) this.wv[j] += (p.w[j] - this.wv[j]) * k;
+    const ls = this.state === 'run' ? 0 : this.state === 'select' ? (this.tSel > .4 ? 1 : 2) : -1;
+    if (ls !== this.ls){ this.ls = ls; $$('#swSteps li').forEach((li, j) => li.classList.toggle('on', j === ls)); }
+    this.drawBars(); this.drawNet();
+  },
+  resize(){ this.bars = fit($('#swBars')); this.net = fit($('#swNet')); },
+  drawBars(){
+    const f = this.bars, cv = $('#swBars'); if (!f || f.w < 40) return; const c = cv.getContext('2d'), W = f.w, H = f.h, p = this.pop, h = p.hist, run = this.state === 'run';
+    c.setTransform(f.d, 0, 0, f.d, 0, 0); c.clearRect(0, 0, W, H);
+    const fs = clamp(REM * .78, 11, 16), L = fs * 3.2, Tm = fs * 1.5, B = fs * 1.6, pw = W - L - 4, ph = H - Tm - B, slots = Math.max(12, h.length + (run ? 1 : 0)), bw = pw / slots, Y = v => Tm + (1 - v) * ph;
+    c.font = `${fs}px ${MONO}`; c.textAlign = 'right'; c.textBaseline = 'middle'; c.direction = 'ltr'; c.lineWidth = 1;
+    for (const v of [0, .5, 1]){ const y = Math.round(Y(v)) + .5; c.strokeStyle = v ? 'rgba(255,255,255,.09)' : 'rgba(255,255,255,.24)'; seg2(c, L, y, W - 4, y); c.fillStyle = L2; c.fillText(Math.round(v * 100) + '%', L - 7, y); }
+    const bar = (i, v, live) => { const x = L + i * bw + bw * .16, w = bw * .68, y = Y(v), hh = Math.max(2, Y(0) - y), r = Math.min(4, w / 2, hh); c.beginPath(); c.moveTo(x, Y(0)); c.lineTo(x, y + r); c.quadraticCurveTo(x, y, x + r, y); c.lineTo(x + w - r, y); c.quadraticCurveTo(x + w, y, x + w, y + r); c.lineTo(x + w, Y(0)); c.closePath(); c.fillStyle = live ? 'rgba(52,194,107,.45)' : CAI; c.fill(); };
+    h.forEach((v, i) => bar(i, v, false)); if (run) bar(h.length, this.air, true);
+    c.textBaseline = 'alphabetic'; c.textAlign = 'center'; c.fillStyle = L2; const every = slots > 16 ? 4 : slots > 12 ? 2 : 1; for (let i = 0; i < slots; i += every) c.fillText(String(i + 1), L + (i + .5) * bw, H - 4);
+    const li = h.length - 1; if (li >= 0 && !run){ c.fillStyle = LABEL; c.font = `600 ${fs * 1.05}px ${UI}`; c.fillText(Math.round(h[li] * 100) + '%', clamp(L + (li + .5) * bw, L + 18, W - 22), Y(h[li]) - 6); }
+  },
+  drawNet(){ // the shared network, with the signal of one flying drone passing through it right now
+    const f = this.net, cv = $('#swNet'); if (!f || f.w < 40) return; const c = cv.getContext('2d'), W = f.w, H = f.h, w = this.wv, p = this.pop;
+    c.setTransform(f.d, 0, 0, f.d, 0, 0); c.clearRect(0, 0, W, H);
+    let a = 0; for (let i = 0; i < SWN; i++) if (p.alive[i]){ a = i; break; }
+    const th = p.th[a], om = p.om[a], ia = -th / 30, ib = om / 150, hv = new Float32Array(NH); let o = w[NPAR - 1];
+    for (let h = 0; h < NH; h++){ hv[h] = Math.tanh(w[h] * ia + w[NH + h] * ib + w[2 * NH + h]); o += w[3 * NH + h] * hv[h]; }
+    const u = 100 * Math.tanh(o);
+    const fs = clamp(REM * .74, 11, 15), xi = fs * 4.6, xo = W - fs * 4.8, xh = (xi + xo) / 2, yi = [H * .3, H * .7], yh = i => H * (.08 + .84 * i / (NH - 1)), yo = H / 2;
+    const ln = (x0, y0, x1, y1, v, sig) => { const k = clamp(Math.abs(sig), 0, 1); c.strokeStyle = `rgba(${v >= 0 ? '245,245,247' : '150,150,158'},${fmt(.18 + .7 * k, 2)})`; c.lineWidth = .6 + 4 * Math.min(1, Math.abs(v) / 1.1); seg2(c, x0, y0, x1, y1); };
+    c.lineCap = 'round';
+    for (let h = 0; h < NH; h++){ ln(xi, yi[0], xh, yh(h), w[h], w[h] * ia); ln(xi, yi[1], xh, yh(h), w[NH + h], w[NH + h] * ib); ln(xh, yh(h), xo, yo, w[3 * NH + h], w[3 * NH + h] * hv[h]); }
+    const node = (x, y, r, v) => { c.beginPath(); c.arc(x, y, r, 0, 7); c.fillStyle = '#000'; c.fill(); c.beginPath(); c.arc(x, y, r, 0, 7); c.fillStyle = v >= 0 ? `rgba(52,194,107,${fmt(Math.min(1, Math.abs(v)), 2)})` : `rgba(235,235,245,${fmt(.8 * Math.min(1, Math.abs(v)), 2)})`; c.fill(); c.strokeStyle = L2; c.lineWidth = 1.5; c.stroke(); };
+    node(xi, yi[0], 6, ia); node(xi, yi[1], 6, ib); for (let h = 0; h < NH; h++) node(xh, yh(h), 5, hv[h]); node(xo, yo, 7.5, u / 100);
+    c.textBaseline = 'middle'; c.direction = 'rtl'; c.textAlign = 'right';
+    c.font = `500 ${fs}px ${UI}`; c.fillStyle = L2; c.fillText('זווית', xi - 10, yi[0] - fs * .6); c.fillText('קצב', xi - 10, yi[1] - fs * .6);
+    c.font = `600 ${fs}px ${MONO}`; c.fillStyle = LABEL; c.direction = 'ltr'; c.fillText(show(th, 0) + '°', xi - 10, yi[0] + fs * .6); c.fillText(show(om, 0) + '°/s', xi - 10, yi[1] + fs * .6);
+    c.direction = 'rtl'; c.textAlign = 'left'; c.font = `500 ${fs}px ${UI}`; c.fillStyle = L2; c.fillText('מנועים', xo + 12, yo - fs * .6);
+    c.direction = 'ltr'; c.font = `600 ${fs}px ${MONO}`; c.fillStyle = LABEL; c.fillText((u > 0 ? '+' : '') + show(u, 0) + '%', xo + 12, yo + fs * .6);
+  },
+};
+$('#swGo').addEventListener('click', () => { if (sw.state === 'idle' || sw.state === 'hold') sw.state = 'run'; else if (sw.state === 'run' || sw.state === 'select'){ if (sw.state === 'select'){ popReset(sw.pop); } sw.state = 'hold'; } sw.ui(); });
+$('#swReset').addEventListener('click', () => sw.init());
+$('#swGust').addEventListener('click', () => sw.gust());
+toggle('#swWind', on => { sw.par.d = on ? -600 : 0; sw.ui(); });
+
+/* --- station 6: what a network costs on board: chip, watts, grams, minutes --- */
+// hover power from momentum theory: P = (mg)^1.5 / sqrt(2 rho A) / (figure of merit x motor efficiency)
+const HWM = { m0: .72, A: 4 * Math.PI * .0635 ** 2, eta: .45, Wh: 22.2 * .8, Tmax: 35, fc: .29 };
+const hover = m => (m * 9.81) ** 1.5 / Math.sqrt(2 * 1.225 * HWM.A) / HWM.eta;
+const CHIPS = [{ n: 'STM32F405', w: 10, h: 10, p: '0.3 W' }, { n: 'Jetson TX2', w: 87, h: 50, p: '7.5–15 W' }, { n: 'Jetson Orin NX', w: 69.6, h: 45, p: '10–25 W' }];
+const HW = [
+  { n: 'PID', chip: 0, P: 0, m: 0, say: '<b>PID על בקר הטיסה.</b> כ-10 פעולות חשבון לכל החלטה, על שבב STM32F405 של 168 MHz שצורך כ-0.3 W. זה השבב שכבר נמצא ברוב רחפני המירוץ.' },
+  { n: 'רשת בקרה קטנה', chip: 0, P: 0, m: 0, say: '<b>רשת בקרה של שתי שכבות, 64 נוירונים בכל אחת</b> (Hwangbo ועמיתיו, 2017). כ-5,500 הכפלות לכל החלטה: 7 מיקרו-שניות במעבד שולחני, ולפי הערכה שלנו עשרות מיקרו-שניות בבקר טיסה. אותו שבב, כמעט בלי חשמל נוסף.' },
+  { n: 'רשת ראייה, TX2', chip: 1, P: 10, m: 150, say: '<b>רשת שרואה, כמו Swift.</b> רשת קונבולוציה מזהה את השערים בתמונה, ורק אחריה רשת הבקרה מחליטה. זה דרש מחשב Jetson TX2, ומעבר אחד ברשת לקח 40 ms. בהשוואה ההוגנת, לרחפנים של הטייסים האנושיים הוסיפו משקולת במקום המחשב.' },
+  { n: 'Orin NX', chip: 2, P: 20, m: 150, say: '<b>מחשב AI חדש יותר, Jetson Orin NX.</b> מריץ רשתות גדולות בהרבה, וצורך 10 עד 25 W. כאן הנחנו 20 W.' },
+];
+const hwFly = o => { const m = HWM.m0 + o.m / 1000, Pm = hover(m), Pc = HWM.fc + o.P; return { m, Pm, Pc, t: HWM.Wh / (Pm + Pc) * 60, hov: m * 9.81 / HWM.Tmax }; };
+const hw = { i: 0, f: null, a: [1, 0, 0], tmax: hwFly(HW[0]).t,
+  set(i){ this.i = i; const o = HW[i], r = hwFly(o), b = hwFly(HW[0]);
+    $('#hwT').textContent = fmt(r.t, 1); $('#hwM').textContent = Math.round(r.Pm); $('#hwC').textContent = r.Pc < 1 ? fmt(r.Pc, 1) : Math.round(r.Pc); $('#hwH').textContent = Math.round(r.hov * 100) + '%';
+    let extra = ''; if (o.m){ const lost = b.t - r.t, massOnly = HWM.Wh / (r.Pm + HWM.fc) * 60, byMass = b.t - massOnly; extra = ` <b>${fmt(lost, 1)} דקות טיסה פחות.</b> ${fmt(byMass, 1)} מהן בגלל ${o.m} הגרם שהמנועים מרימים, ורק ${fmt(lost - byMass, 1)} בגלל החשמל של המחשב.`; }
+    $('#hwSay').innerHTML = o.say + extra;
+    $$('#hwBars > div').forEach((d, j) => d.classList.toggle('on', j === i)); },
+  build(){ $('#hwBars').innerHTML = HW.map(o => { const r = hwFly(o); return `<div><span>${o.n}</span><i style="transform:scaleX(${fmt(r.t / this.tmax, 3)})"></i><b>${fmt(r.t, 1)} דק׳</b></div>`; }).join(''); this.set(0); },
+  resize(){ this.f = fit($('#hwChips')); },
+  paint(dt){
+    const f = this.f, cv = $('#hwChips'); if (!f || f.w < 60) return; const c = cv.getContext('2d'), W = f.w, H = f.h, on = HW[this.i].chip, k = 1 - Math.exp(-dt * 14);
+    for (let j = 0; j < 3; j++) this.a[j] += ((j === on ? 1 : 0) - this.a[j]) * k;
+    c.setTransform(f.d, 0, 0, f.d, 0, 0); c.clearRect(0, 0, W, H);
+    const fs = clamp(REM * .8, 11, 16), lab = fs * 4.4, gapmm = W < 500 ? 26 : 14, tot = CHIPS.reduce((t, q) => t + q.w, 0) + gapmm * 2, sc = Math.min((W - fs * 9) / tot, (H - lab) / 50), y0 = 4 + 50 * sc;
+    let x = (W - tot * sc) / 2;
+    CHIPS.forEach((q, j) => { const w = q.w * sc, h = q.h * sc, a = this.a[j], y = y0 - h, r = Math.min(6, w / 6);
+      c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath();
+      c.fillStyle = `rgba(245,245,247,${fmt(.06 + .84 * a, 3)})`; c.fill(); c.strokeStyle = `rgba(245,245,247,${fmt(.35 + .65 * a, 3)})`; c.lineWidth = 1.5; c.stroke();
+      const cx = x + w / 2; c.textAlign = 'center'; c.textBaseline = 'top'; c.direction = 'ltr';
+      c.globalAlpha = .55 + .45 * a; c.font = `700 ${fs}px ${UI}`; c.fillStyle = LABEL; c.fillText(q.n, cx, y0 + fs * .6);
+      c.font = `500 ${fs * .9}px ${MONO}`; c.fillStyle = L2; c.fillText(`${q.w}×${q.h} mm`, cx, y0 + fs * 1.9); c.fillText(q.p, cx, y0 + fs * 3.1); c.globalAlpha = 1;
+      x += w + gapmm * sc; });
+  },
+};
+const hwSeg = segmented($('#hwSeg'), i => hw.set(i));
+
+/* --- station 7: the price of each approach --- */
+const tvSeg = segmented($('#tvSeg'), i => { [0, 1, 2].forEach(j => { $('#tv' + j).hidden = j !== i; }); measure(); });
+const OPT = ['PID', 'PID + נוירון', 'רשת לומדת'];
+const QUIZ = [
+  ['רחפן צילום מסחרי. צריך ריחוף יציב, מעבד זול והתנהגות צפויה.', 0, 'זה הסטנדרט בטייסים האוטומטיים הפתוחים: בקר זווית, ומתחתיו PID על קצב הסיבוב.'],
+  ['זרוע רובוטית עם שרירים פנאומטיים. לא-ליניארית, והעומס משתנה.', 1, 'Thanh ו-Ahn ‏(2006): נוירון שמכוונן את מקדמי ה-PID תוך כדי תנועה.'],
+  ['מרוץ רחפנים מול אלופי עולם, על קצה היכולת הפיזיקלית.', 2, 'Swift ‏(Nature, 2023) אומנה בסימולציה וניצחה 15 מתוך 25 מרוצים.'],
+  ['פלזמה בכור היתוך. 19 סלילים מגנטיים שמשפיעים זה על זה.', 2, 'DeepMind ו-EPFL ‏(Nature, 2022): רשת אחת לכל 19 הסלילים של TCV.'],
+];
+let qi = 0;
+function showQ(){ const q = QUIZ[qi]; $('#qzN').textContent = `תרחיש ${qi + 1} מתוך ${QUIZ.length}`; $('#qzQ').textContent = q[0]; $('#qzA').textContent = ''; $('#qzO').innerHTML = OPT.map((o, j) => `<button class="btn" type="button" data-a="${j}">${o}</button>`).join(''); const nx = $('#qzNext'); nx.disabled = true; nx.textContent = qi === QUIZ.length - 1 ? 'מההתחלה' : 'התרחיש הבא'; }
+$('#qzO').addEventListener('click', e => { const b = e.target.closest('button'); if (!b || b.disabled) return; const q = QUIZ[qi], pick = +b.dataset.a; $$('#qzO button').forEach((x, j) => { x.classList.toggle('right', j === q[1]); x.disabled = true; }); $('#qzA').innerHTML = `<b>${pick === q[1] ? 'כך עשו בפועל.' : 'בפועל: ' + OPT[q[1]] + '.'}</b> ${q[2]}`; $('#qzNext').disabled = false; });
+$('#qzNext').addEventListener('click', () => { qi = (qi + 1) % QUIZ.length; showQ(); });
+
+/* ================= 3D stage ================= */
+const Y0 = .46, FLOOR = -2.6, HB = Y0 + .06; // the body sits above the pivot, like an inverted pendulum
+function makeStage(){
+  const T = window.THREE, cv = $('#stage'); if (!T) return null;
+  let R; try { R = new T.WebGLRenderer({ canvas: cv, antialias: true, alpha: true, powerPreference: 'high-performance' }); } catch (e) { return null; }
+  R.setPixelRatio(Math.min(2, devicePixelRatio || 1)); R.outputEncoding = T.sRGBEncoding; R.toneMapping = T.ACESFilmicToneMapping; R.toneMappingExposure = 1.2; R.setClearColor(0x000000, 0);
+  R.shadowMap.enabled = true; R.shadowMap.type = T.PCFSoftShadowMap;
+  const col = h => new T.Color(h).convertSRGBToLinear();
+  const scene = new T.Scene(); scene.fog = new T.Fog(0x000000, 42, 135);
+  const cam = new T.PerspectiveCamera(32, 1, .1, 260);
+  try { // a small softbox studio, baked once into an environment map for reflections
+    const es = new T.Scene(); es.add(new T.Mesh(new T.BoxGeometry(24, 24, 24), new T.MeshBasicMaterial({ color: 0x030304, side: T.BackSide })));
+    const box = (c, k, p, s) => { const m = new T.Mesh(new T.BoxGeometry(1, 1, 1), new T.MeshBasicMaterial({ color: new T.Color(c).multiplyScalar(k) })); m.position.set(p[0], p[1], p[2]); m.scale.set(s[0], s[1], s[2]); es.add(m); };
+    box(0xffffff, 8, [0, 10, 0], [9, .2, 9]); box(0xcfe0ff, 4.5, [-10, 2, 3], [.2, 6, 6]); box(0xffe2c4, 3, [10, 1, -3], [.2, 5, 5]); box(0xffffff, 2, [0, 3, 11], [10, 3, .2]);
+    const pm = new T.PMREMGenerator(R); scene.environment = pm.fromScene(es, .04).texture; pm.dispose();
+  } catch (e) { /* lights alone still work */ }
+  scene.add(new T.HemisphereLight(0xffffff, 0x060608, .42));
+  const key = new T.DirectionalLight(0xffffff, 1.5); key.position.set(3.5, 7, 5); key.castShadow = true; key.shadow.mapSize.set(1024, 1024);
+  Object.assign(key.shadow.camera, { left: -7, right: 7, top: 7, bottom: -7, near: 1, far: 24 }); key.shadow.camera.updateProjectionMatrix(); key.shadow.bias = -.0006; key.shadow.radius = 4; scene.add(key);
+  const rim = new T.DirectionalLight(0xa8c4ff, 1.1); rim.position.set(-6, 3, -5); scene.add(rim);
+  const warm = new T.PointLight(0xffb080, .7, 30); warm.position.set(6, 1.5, -3); scene.add(warm);
+  const floor = new T.Mesh(new T.CircleGeometry(120, 64), new T.MeshStandardMaterial({ color: col(0x0e0e11), roughness: .9, metalness: .15, envMapIntensity: .2 })); floor.rotation.x = -Math.PI / 2; floor.position.y = FLOOR; floor.receiveShadow = true; scene.add(floor);
+  const gc = document.createElement('canvas'); gc.width = gc.height = 256; { const g2 = gc.getContext('2d'), gr = g2.createRadialGradient(128, 128, 0, 128, 128, 128); gr.addColorStop(0, '#fff'); gr.addColorStop(.35, '#999'); gr.addColorStop(.7, '#2a2a2a'); gr.addColorStop(1, '#000'); g2.fillStyle = gr; g2.fillRect(0, 0, 256, 256); }
+  const pool = new T.Mesh(new T.CircleGeometry(17, 64), new T.MeshStandardMaterial({ color: col(0x3e3e46), roughness: .7, metalness: .2, envMapIntensity: .3, transparent: true, alphaMap: new T.CanvasTexture(gc), depthWrite: false })); pool.rotation.x = -Math.PI / 2; pool.position.y = FLOOR + .004; pool.receiveShadow = true; scene.add(pool);
+
+  const M = {
+    carbon: new T.MeshStandardMaterial({ color: col(0x1c1c20), metalness: .65, roughness: .4 }),
+    shell: new T.MeshPhysicalMaterial({ color: col(0x3a3a42), metalness: .55, roughness: .2, clearcoat: 1, clearcoatRoughness: .1 }),
+    metal: new T.MeshStandardMaterial({ color: col(0xb9bcc4), metalness: 1, roughness: .28 }),
+    dark: new T.MeshStandardMaterial({ color: col(0x0d0d10), metalness: .4, roughness: .5 }),
+    pcb: new T.MeshStandardMaterial({ color: col(0x0f5c47), metalness: .2, roughness: .6 }),
+    batt: new T.MeshStandardMaterial({ color: col(0x2c2c31), metalness: .3, roughness: .6 }),
+    band: new T.MeshStandardMaterial({ color: col(0xe2e2e6), metalness: .1, roughness: .5 }),
+    crate: new T.MeshStandardMaterial({ color: col(0xd8d8dc), metalness: .1, roughness: .7 }),
+    blade: new T.MeshStandardMaterial({ color: col(0xeaeaee), metalness: .1, roughness: .4, transparent: true, opacity: .55 }),
+    disc: new T.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .06, depthWrite: false, side: T.DoubleSide }),
+    stand: new T.MeshStandardMaterial({ color: col(0x4a4a50), metalness: .9, roughness: .34 }),
+  };
+  const G = {
+    plateB: new T.BoxGeometry(1.2, .05, .76), plateT: new T.BoxGeometry(1.02, .05, .62), canopy: new T.SphereGeometry(.5, 40, 20, 0, Math.PI * 2, 0, Math.PI / 2),
+    pcb: new T.BoxGeometry(.46, .025, .46), chip: new T.BoxGeometry(.15, .03, .15), imu: new T.BoxGeometry(.11, .04, .11),
+    batt: new T.BoxGeometry(.9, .24, .42), band: new T.BoxGeometry(.26, .246, .426), arm: new T.BoxGeometry(1.3, .065, .14),
+    motor: new T.CylinderGeometry(.16, .18, .2, 28), bell: new T.CylinderGeometry(.12, .16, .07, 28), ring: new T.TorusGeometry(.2, .022, 8, 40),
+    blade: new T.BoxGeometry(1, .012, .1), hub: new T.CylinderGeometry(.04, .04, .06, 12), disc: new T.CircleGeometry(.5, 48),
+    camBox: new T.BoxGeometry(.22, .17, .16), lens: new T.CylinderGeometry(.055, .055, .07, 20), rail: new T.BoxGeometry(.045, .045, 1.15), strut: new T.BoxGeometry(.035, .42, .035),
+    crate: new T.BoxGeometry(.34, .3, .34), cord: new T.CylinderGeometry(.008, .008, .3, 6),
+    base: new T.CylinderGeometry(.7, .9, .1, 48), pole: new T.CylinderGeometry(.04, .06, 2.6, 20), joint: new T.SphereGeometry(.085, 20, 14), streak: new T.BoxGeometry(1.4, .014, .014),
+  };
+  G.pole.translate(0, 1.3, 0);
+  const mesh = (g, m) => { const o = new T.Mesh(g, m); o.castShadow = true; return o; };
+  const ledBase = col(0xe6ecf8), ledAI = col(0x34c26b), glow = col(0x9cc8ff);
+
+  function buildRig(){
+    const root = new T.Group(), tilt = new T.Group(); root.add(tilt); scene.add(root);
+    const parts = [], props = [], leds = [], skids = [], r = {};
+    const part = (o, px, py, pz, dx, dy, dz, t) => { o.position.set(px, py + Y0, pz); tilt.add(o); parts.push({ o, h: o.position.clone(), d: new T.Vector3(dx, dy, dz), t }); return o; };
+    part(mesh(G.plateB, M.carbon), 0, -.08, 0, 0, -.25, 0, .1);
+    const pcbM = M.pcb.clone(), imuM = M.metal.clone(); pcbM.emissive = glow.clone(); pcbM.emissiveIntensity = 0; imuM.emissive = glow.clone(); imuM.emissiveIntensity = 0;
+    const fc = new T.Group(); fc.add(mesh(G.pcb, pcbM)); const chipM = mesh(G.chip, M.dark); chipM.position.set(.09, .028, .06); fc.add(chipM); part(fc, 0, 0, 0, 0, .38, 0, .05);
+    const imu = part(mesh(G.imu, imuM), -.1, .03, -.08, -.32, .82, 0, 0);
+    part(mesh(G.plateT, M.carbon), 0, .1, 0, 0, 1.12, 0, .12);
+    const can = mesh(G.canopy, M.shell); can.scale.set(1.05, .62, .72); part(can, 0, .125, 0, 0, 1.62, 0, .2);
+    const bat = new T.Group(); bat.add(mesh(G.batt, M.batt)); bat.add(mesh(G.band, M.band)); part(bat, 0, -.25, 0, 0, -.78, 0, .15);
+    const cg = new T.Group(); cg.add(mesh(G.camBox, M.dark)); const lens = mesh(G.lens, M.metal); lens.rotation.x = Math.PI / 2; lens.position.z = .1; cg.add(lens); part(cg, 0, -.15, .5, 0, -.2, .95, .18);
+    for (const [sx, sz] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]){
+      const dx = sx * Math.SQRT1_2, dz = sz * Math.SQRT1_2, mx = sx * 1.12, mz = sz * 1.12;
+      const arm = mesh(G.arm, M.carbon); arm.rotation.y = -Math.atan2(sz, sx); part(arm, sx * .6, 0, sz * .6, dx * .3, 0, dz * .3, .08);
+      const mg = new T.Group(); mg.add(mesh(G.motor, M.metal)); const bell = mesh(G.bell, M.dark); bell.position.y = .135; mg.add(bell);
+      const lm = new T.MeshBasicMaterial({ color: ledBase.clone() }), ring = new T.Mesh(G.ring, lm); ring.rotation.x = Math.PI / 2; ring.position.y = -.07; mg.add(ring); leds.push({ m: lm, sx });
+      part(mg, mx, .1, mz, dx * .85, .12, dz * .85, .14);
+      const pg = new T.Group(); pg.add(mesh(G.blade, M.blade)); pg.add(mesh(G.hub, M.dark)); const disc = new T.Mesh(G.disc, M.disc); disc.rotation.x = -Math.PI / 2; pg.add(disc); pg.rotation.y = Math.random() * 3;
+      part(pg, mx, .29, mz, dx * .85, .72, dz * .85, .22); props.push({ o: pg, dir: sx * sz, sx });
+      if (sz > 0){ if (sx < 0){ r.motorL = mg; r.propL = pg; } else { r.motorR = mg; r.propR = pg; } }
+    }
+    for (const sx of [-1, 1]){ const sg = new T.Group(); const rail = mesh(G.rail, M.carbon); rail.position.y = -.2; sg.add(rail); for (const z of [-.36, .36]){ const s = mesh(G.strut, M.carbon); s.position.set(0, 0, z); sg.add(s); } part(sg, sx * .42, -.42, 0, sx * .28, -1.05, 0, .25); skids.push(sg); }
+    const crate = new T.Group(); crate.add(mesh(G.crate, M.crate)); const cord = mesh(G.cord, M.dark); cord.position.y = .3; crate.add(cord); crate.position.set(1.12, Y0 - .45, 1.12); crate.scale.setScalar(.001); tilt.add(crate);
+    const stand = new T.Group(); const base = mesh(G.base, M.stand); base.position.y = .05; base.receiveShadow = true; stand.add(base); stand.add(mesh(G.pole, M.stand)); const j = mesh(G.joint, M.metal); j.position.y = 2.6; stand.add(j); stand.position.set(0, FLOOR, 0); scene.add(stand);
+    return Object.assign(r, { root, tilt, parts, props, leds, skids, crate, stand, imu, fc, pcbM, imuM, th: 0, u: 0, mix: 0, load: 0, weak: 0, x: 0, y: 0, s: 1 });
+  }
+  const A = buildRig(), B = buildRig();
+  const streaks = []; const sm = new T.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false });
+  for (let i = 0; i < 14; i++){ const s = new T.Mesh(G.streak, sm.clone()); s.visible = false; scene.add(s); streaks.push({ o: s, v: 0, life: 0 }); }
+
+  /* the field: every drone is one instance of three shared meshes */
+  const mat4 = (x, y, z, rx, ry, sx, sy, sz) => new T.Matrix4().compose(new T.Vector3(x, y, z), new T.Quaternion().setFromEuler(new T.Euler(rx, ry, 0)), new T.Vector3(sx, sy, sz));
+  const merge = list => { let n = 0; const ps = list.map(([g, m]) => { const q = g.toNonIndexed(); q.applyMatrix4(m); n += q.attributes.position.array.length; return q; }); const pos = new Float32Array(n), nor = new Float32Array(n); let o = 0;
+    for (const q of ps){ pos.set(q.attributes.position.array, o); nor.set(q.attributes.normal.array, o); o += q.attributes.position.array.length; q.dispose(); }
+    const out = new T.BufferGeometry(); out.setAttribute('position', new T.BufferAttribute(pos, 3)); out.setAttribute('normal', new T.BufferAttribute(nor, 3)); return out; };
+  const corners = [[-1, 1], [1, 1], [-1, -1], [1, -1]];
+  const gBody = merge([[new T.BoxGeometry(3.3, .07, .15), mat4(0, Y0, 0, 0, Math.PI / 4, 1, 1, 1)], [new T.BoxGeometry(3.3, .07, .15), mat4(0, Y0, 0, 0, -Math.PI / 4, 1, 1, 1)], [new T.BoxGeometry(.95, .2, .6), mat4(0, Y0 + .02, 0, 0, 0, 1, 1, 1)],
+    [new T.SphereGeometry(.46, 14, 7, 0, Math.PI * 2, 0, Math.PI / 2), mat4(0, Y0 + .1, 0, 0, 0, 1.05, .6, .72)], ...corners.map(([sx, sz]) => [new T.CylinderGeometry(.17, .19, .24, 10), mat4(sx * 1.12, Y0 + .1, sz * 1.12, 0, 0, 1, 1, 1)])]);
+  const gDisc = merge(corners.map(([sx, sz]) => [new T.CircleGeometry(.54, 18), mat4(sx * 1.12, Y0 + .3, sz * 1.12, -Math.PI / 2, 0, 1, 1, 1)]));
+  const gStand = merge([[new T.CylinderGeometry(.05, .07, 2.6, 8), mat4(0, -1.3, 0, 0, 0, 1, 1, 1)], [new T.CylinderGeometry(.5, .62, .1, 16), mat4(0, -2.55, 0, 0, 0, 1, 1, 1)]]);
+  const mBody = new T.MeshStandardMaterial({ color: 0xffffff, metalness: .55, roughness: .42, transparent: true }), mDisc = new T.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .6, depthWrite: false, side: T.DoubleSide, blending: T.AdditiveBlending, toneMapped: false }), mStand = new T.MeshStandardMaterial({ color: col(0x55555c), metalness: .85, roughness: .4, transparent: true });
+  const iBody = new T.InstancedMesh(gBody, mBody, SWN), iDisc = new T.InstancedMesh(gDisc, mDisc, SWN), iStand = new T.InstancedMesh(gStand, mStand, SWN), swG = new T.Group(); swG.add(iStand, iBody, iDisc); swG.visible = false; scene.add(swG);
+  for (const m of [iBody, iDisc, iStand]) m.frustumCulled = false;
+  iDisc.instanceMatrix = iBody.instanceMatrix; iDisc.renderOrder = 2;
+  iBody.instanceColor = new T.InstancedBufferAttribute(new Float32Array(SWN * 3).fill(.8), 3); iDisc.instanceColor = new T.InstancedBufferAttribute(new Float32Array(SWN * 3).fill(.15), 3);
+  const PIV = FLOOR + 2.6 * SWL.s, vth = new Float32Array(SWN);
+  { const m = new T.Matrix4(); for (let a = 0; a < SWN; a++){ m.makeScale(SWL.s, SWL.s, SWL.s); m.setPosition(swPos.px[a], PIV, swPos.pz[a]); iStand.setMatrixAt(a, m); } iStand.instanceMatrix.needsUpdate = true; }
+
+  let W = 1, H = 1, narrow = false, tt = 0, yaw = 0, SH = ST.map(s => s.shot);
+  const NS = 11, cur = ST[0].shot.slice(); cur[2] = 15; cur[0] = 62; // start far away and glide in
+  const tgt = cur.slice(), v3 = new T.Vector3(), rt = new T.Vector3(), up = new T.Vector3(), ctr = new T.Vector3(), shade = $('#shade');
+  let lastSt = -1;
+  const proj = (x, y, z) => { v3.set(x, y, z).project(cam); return [(v3.x * .5 + .5) * W, (-v3.y * .5 + .5) * H]; };
+  const projO = o => { o.getWorldPosition(v3); return proj(v3.x, v3.y, v3.z); };
+  function poseRig(r, ex, stand, twinX, vis, sc, inp, dt, paused, hlW, hl){
+    r.root.visible = vis > .02; r.stand.visible = vis > .02 && stand > .02; r.x = twinX; r.s = Math.max(.001, vis * sc); if (!r.root.visible) return;
+    const bob = (RM || paused) ? 0 : Math.sin(tt * 1.3) * .07;
+    r.y = (1 - stand) * (.6 + bob + ex * .35) - 2.6 * (1 - sc) * stand;
+    r.root.position.set(twinX, r.y, 0); r.root.scale.setScalar(r.s); r.stand.position.x = twinX; r.stand.scale.set(r.s, Math.max(.001, stand * r.s), r.s);
+    const a = 1 - Math.exp(-dt * 30), sway = (RM || paused) ? 0 : Math.sin(tt * .9) * 1.6 * (1 - stand);
+    r.th += ((inp.th === undefined ? sway : inp.th) - r.th) * a; r.u += ((inp.u || 0) - r.u) * a; r.tilt.rotation.z = -r.th * Math.PI / 180;
+    r.mix += ((inp.ai ? 1 : 0) - r.mix) * (1 - Math.exp(-dt * 5)); r.load += ((inp.load ? 1 : 0) - r.load) * (1 - Math.exp(-dt * 12)); r.weak += ((inp.weak ? 1 : 0) - r.weak) * (1 - Math.exp(-dt * 6)); r.crate.scale.setScalar(Math.max(.001, r.load));
+    for (const p of r.parts){ const t = clamp((ex - p.t) / .75, 0, 1), e = t * t * (3 - 2 * t); p.o.position.set(p.h.x + p.d.x * e, p.h.y + p.d.y * e, p.h.z + p.d.z * e); }
+    for (const s of r.skids) s.scale.setScalar(Math.max(.001, 1 - stand));
+    const all = hl === 3;
+    for (const l of r.leds){ const th = clamp(.5 - l.sx * r.u / 200, 0, 1); l.m.color.copy(ledBase).lerp(ledAI, r.mix).multiplyScalar((.3 + 1.7 * th + (hl === 2 || all ? hlW * 1.5 : 0)) * (1 - .6 * r.weak)); }
+    if (!paused) for (const p of r.props){ const th = clamp(.5 - p.sx * r.u / 200, 0, 1); p.o.rotation.y += dt * p.dir * (26 + 44 * th) * (1 - .4 * r.weak); }
+    r.imuM.emissiveIntensity = hlW * (hl === 0 || all ? 2.4 : .15); r.pcbM.emissiveIntensity = hlW * (hl === 1 || all ? 1.8 : .1);
+  }
+  return {
+    flat: false, snap: false, hl: -1, live: false, rig: [A, B], proj, k: [0, 0, 0, 0],
+    resize(){ W = cv.clientWidth || innerWidth; H = cv.clientHeight || innerHeight; R.setSize(W, H, false); cam.aspect = W / H; cam.updateProjectionMatrix(); narrow = W < 860;
+      // keep each rig, and what is drawn around it, inside the part of the screen the text leaves free
+      const colEl = $('#s1 .col'), cw = colEl ? colEl.getBoundingClientRect().width : W * .4, free = clamp(1 - (cw + 40) / W, .3, .75), k = 2 * Math.tan(cam.fov * Math.PI / 360) * cam.aspect;
+      SH = ST.map(s => { const sh = s.shot.slice(); if (!narrow && s.need){ sh[3] = free / 2 - .5; sh[2] = Math.max(sh[2], s.need / (free * k)); } return sh; }); },
+    gust(sg){ if (RM || !this.live) return; for (const s of streaks){ s.life = .55 + Math.random() * .2; s.v = sg * (13 + Math.random() * 8); s.o.position.set(-sg * (3.5 + Math.random() * 3.5), -.6 + Math.random() * 2.2, -1.6 + Math.random() * 3.2); s.o.visible = true; } },
+    parts(){ // screen positions of the pieces the loop station points at, and a unit "up" at each front propeller for the thrust arrows
+      const o = { imu: projO(A.imu), fc: projO(A.fc), mL: projO(A.motorL), mR: projO(A.motorR) }, t = A.th * Math.PI / 180, ux = Math.sin(t) * A.s, uy = Math.cos(t) * A.s;
+      for (const [k, p] of [['tL', A.propL], ['tR', A.propR]]){ p.getWorldPosition(v3); const bx = v3.x + ux * .16, by = v3.y + uy * .16, bz = v3.z; o[k] = [proj(bx, by, bz), proj(bx + ux, by + uy, bz)]; }
+      return o; },
+    update(dt, f, st, inA, inB, paused, swm){
+      if (!paused) tt += dt;
+      const i0 = Math.min(NST - 1, Math.floor(f)), i1 = Math.min(NST - 1, i0 + 1); let t = clamp((f - i0 - .15) / .7, 0, 1); t = t * t * (3 - 2 * t);
+      const S0 = RM ? SH[st] : SH[i0], S1 = RM ? S0 : SH[i1];
+      for (let k = 0; k < NS; k++) tgt[k] = S0[k] + (S1[k] - S0[k]) * t;
+      if (narrow){ tgt[3] = 0; tgt[4] = st === 0 ? .14 : .23; tgt[2] *= Math.max(1.15, 1.05 / cam.aspect) * (1 + .5 * tgt[7]); }
+      if (RM && st !== lastSt && lastSt >= 0){ cv.classList.add('cut'); cv.style.opacity = '0'; setTimeout(() => { cv.style.opacity = '1'; }, 120); }
+      lastSt = st;
+      const a = (this.snap || RM) ? 1 : 1 - Math.exp(-dt * 4.2); this.snap = false;
+      for (let k = 0; k < NS; k++) cur[k] += (tgt[k] - cur[k]) * a;
+      const [az, el, dist, ox, oy, ex, stand, twin, dim, spin, swp] = cur;
+      if (!RM && !paused && spin > .02) yaw += dt * .32 * spin; else if (spin <= .02){ const yt = Math.round(yaw / (Math.PI * 2)) * Math.PI * 2; yaw += (yt - yaw) * (1 - Math.exp(-dt * 5)); }
+      const w = i => clamp(1 - Math.abs(f - i) * 2.6, 0, 1); this.k[0] = w(1); this.k[1] = w(2) * ex; this.k[2] = w(3); this.k[3] = w(4) * twin;
+      const sc = 1 - (1 - SWL.s) * swp; // on the way to the field the hero drone shrinks into one of the many
+      poseRig(A, ex, stand, -1.95 * twin, swp > .93 ? 0 : 1, sc, inA, dt, paused, this.k[1], this.hl); A.root.rotation.y = yaw;
+      poseRig(B, 0, stand, 1.95 * twin, twin, sc, inB, dt, paused, 0, -1);
+      ctr.set(0, .62 + ex * .5 + (1 - stand) * .5 - 1.9 * swp, 0); const ar = az * Math.PI / 180, er = el * Math.PI / 180;
+      cam.position.set(ctr.x + dist * Math.sin(ar) * Math.cos(er), ctr.y + dist * Math.sin(er), ctr.z + dist * Math.cos(ar) * Math.cos(er)); cam.lookAt(ctr); cam.updateMatrixWorld();
+      const hh = 2 * dist * Math.tan(cam.fov * Math.PI / 360), e = cam.matrixWorld.elements; rt.set(e[0], e[1], e[2]); up.set(e[4], e[5], e[6]);
+      cam.position.addScaledVector(rt, -ox * hh * cam.aspect).addScaledVector(up, -oy * hh); cam.updateMatrixWorld();
+      scene.fog.near = dist * 1.3; scene.fog.far = dist * 4 + 8; // the floor fades out before its edge, so there is no horizon line
+      for (const s of streaks){ if (!s.o.visible) continue; s.life -= dt; s.o.position.x += s.v * dt; s.o.material.opacity = clamp(s.life * 1.2, 0, .32); if (s.life <= 0) s.o.visible = false; }
+      swG.visible = swp > .03; floor.visible = swG.visible; pool.material.opacity = 1 - .55 * swp; // the wide floor only under the swarm: elsewhere its far edge read as a horizon line
+      if (swG.visible){
+        const p = swm.pop, kt = 1 - Math.exp(-dt * 26), kc = 1 - Math.exp(-dt * 11), Mx = iBody.instanceMatrix.array, cb = iBody.instanceColor.array, cd = iDisc.instanceColor.array, s = SWL.s, idle = swm.state === 'idle', sel = swm.state === 'select';
+        for (let i = 0; i < SWN; i++){
+          vth[i] += (p.th[i] - vth[i]) * kt; const q = -vth[i] * Math.PI / 180, c = Math.cos(q) * s, sn = Math.sin(q) * s, o = i * 16;
+          Mx[o] = c; Mx[o + 1] = sn; Mx[o + 4] = -sn; Mx[o + 5] = c; Mx[o + 10] = s; Mx[o + 12] = swPos.px[i]; Mx[o + 13] = PIV; Mx[o + 14] = swPos.pz[i]; Mx[o + 15] = 1;
+          let br = .82, bg = .83, bb = .87, dr = .1, dg = .78, db = .36;
+          if (idle){ dr = dg = db = .2; } else if (!p.alive[i]){ br = .34; bg = .09; bb = .08; dr = 1; dg = .13; db = .09; } else if (sel && p.elite[i]){ br = bg = bb = 1.3; dr = dg = db = 1; }
+          const j = i * 3; cb[j] += (br - cb[j]) * kc; cb[j + 1] += (bg - cb[j + 1]) * kc; cb[j + 2] += (bb - cb[j + 2]) * kc; cd[j] += (dr - cd[j]) * kc; cd[j + 1] += (dg - cd[j + 1]) * kc; cd[j + 2] += (db - cd[j + 2]) * kc;
+        }
+        iBody.instanceMatrix.needsUpdate = true; iBody.instanceColor.needsUpdate = true; iDisc.instanceColor.needsUpdate = true;
+        const op = clamp((swp - .2) / .6, 0, 1); mBody.opacity = op; mStand.opacity = op; mDisc.opacity = .62 * op;
+      }
+      shade.style.opacity = fmt(dim, 3);
+      R.render(scene, cam);
+    },
+  };
+}
+/* without WebGL the same scenes are drawn flat, so every demonstration still works */
+function makeFlat(){
+  const mk = () => ({ th: 0, u: 0, x: 0, y: 0, s: 1, on: true, load: 0, mix: 0 }), A = mk(), B = mk(); let W = 1, H = 1, S = 60, cx = 0, cy = 0, narrow = false;
+  const proj = (x, y) => [cx + x * S, cy - y * S];
+  return { flat: true, snap: false, hl: -1, live: false, rig: [A, B], proj, k: [0, 0, 0, 0], sw: 0, st: 0,
+    resize(){ W = innerWidth; H = innerHeight; narrow = W < 860; },
+    gust(){},
+    parts(){ const p = (lx, ly) => { const t = A.th * Math.PI / 180, c = Math.cos(t), s = Math.sin(t); return proj(A.x + lx * c + ly * s, A.y - lx * s + ly * c); }; return { imu: p(-.1, HB + .2), fc: p(.1, HB), mL: p(-1.12, HB), mR: p(1.12, HB), tL: [p(-1.12, HB + .3), p(-1.12, HB + 1.3)], tR: [p(1.12, HB + .3), p(1.12, HB + 1.3)] }; },
+    update(dt, f, st, inA, inB){
+      const colEl = $('#s1 .col'), cw = colEl ? colEl.getBoundingClientRect().width : W * .4, free = narrow ? 1 : clamp(1 - (cw + 40) / W, .3, .75), twin = st === 4 ? 1 : 0, w = i => clamp(1 - Math.abs(f - i) * 2.6, 0, 1);
+      S = Math.min(free * W / (twin ? 10.6 : 7.2), H / (narrow ? 14 : 8)); cx = free * W / 2; cy = narrow ? H * .26 : H * .5; this.st = st; this.sw = w(5);
+      this.k[0] = w(1); this.k[1] = w(2); this.k[2] = w(3); this.k[3] = w(4);
+      const a = 1 - Math.exp(-dt * 30); A.x = -1.95 * twin; B.x = 1.95 * twin; B.on = twin > 0; A.on = st >= 1 && st <= 4;
+      A.th += ((inA.th || 0) - A.th) * a; B.th += ((inB.th || 0) - B.th) * a; A.u = inA.u || 0; B.u = inB.u || 0; A.load = inA.load ? 1 : 0; B.load = inB.load ? 1 : 0; A.mix = inA.ai ? 1 : 0; B.mix = inB.ai ? 1 : 0;
+      $('#shade').style.opacity = st >= 6 ? '.9' : '0';
+    } };
+}
+try { stage = makeStage(); } catch (e) { stage = null; }
+if (!stage){ app.classList.add('no3d'); stage = makeFlat(); }
+
+/* ================= what is drawn on the stage ================= */
+const fx = { cv: $('#fx'), c: $('#fx').getContext('2d'), w: 0, h: 0, d: 1, t: 0,
+  resize(){ this.d = Math.min(2, devicePixelRatio || 1); this.w = innerWidth; this.h = innerHeight; this.cv.width = Math.round(this.w * this.d); this.cv.height = Math.round(this.h * this.d); } };
+// a point at angle phi (degrees, positive = right side down) and distance rad from the middle of the drone's body
+function ap(r, phi, rad){ const t = r.th * Math.PI / 180, p = phi * Math.PI / 180; return stage.proj(r.x + (HB * Math.sin(t) + rad * Math.cos(p)) * r.s, r.y + (HB * Math.cos(t) - rad * Math.sin(p)) * r.s, 0); }
+function arc(c, r, a0, a1, rad, cont){ const n = Math.max(2, Math.ceil(Math.abs(a1 - a0) / 2)); for (let i = 0; i <= n; i++){ const [x, y] = ap(r, a0 + (a1 - a0) * i / n, rad); if (i || cont) c.lineTo(x, y); else c.moveTo(x, y); } }
+function text(c, s, x, y, font, color, align = 'center'){ c.font = font; c.fillStyle = color; c.textAlign = align; c.textBaseline = 'middle'; c.direction = 'rtl'; c.fillText(s, x, y); }
+// the target line, the drone's own line, and the gap between them
+function annot(r, sp, R0, RR, RL, a, label){
+  const c = fx.c, th = r.th; c.globalAlpha = a;
+  c.fillStyle = 'rgba(255,255,255,.16)';
+  for (const [sg, R1] of [[1, RR], [-1, RL]]){ c.beginPath(); arc(c, r, sp, th, sg * R0); arc(c, r, th, sp, sg * R1, true); c.closePath(); c.fill(); }
+  const e0 = ap(r, sp, -RL - .25), e1 = ap(r, sp, RR + .25);
+  c.strokeStyle = 'rgba(235,235,245,.62)'; c.lineWidth = 1.5; c.setLineDash([7, 7]); seg2(c, e0[0], e0[1], e1[0], e1[1]); c.setLineDash([]);
+  c.strokeStyle = LABEL; c.lineWidth = 2.5; c.lineCap = 'round';
+  for (const [sg, R1] of [[1, RR], [-1, RL]]){ const p0 = ap(r, th, sg * R0), p1 = ap(r, th, sg * (R1 + .2)); seg2(c, p0[0], p0[1], p1[0], p1[1]); }
+  if (label){
+    text(c, `יעד ${show(sp, 0)}°`, e0[0] - 10, e0[1], `500 ${REM * .95}px ${UI}`, L2, 'right');
+    const [lx, ly] = ap(r, Math.max(th, sp) + 9, -(R0 + RL) / 2 - .1);
+    text(c, show(Math.abs(sp - th), 1) + '°', lx, ly - REM * .5, `700 ${REM * 1.5}px ${UI}`, LABEL); text(c, 'שגיאה', lx, ly - REM * 1.75, `500 ${REM * .95}px ${UI}`, L2);
+  }
+  c.globalAlpha = 1;
+}
+// one term of the controller, drawn as the twist it asks for
+function torque(r, val, rad, color, letter, a){
+  const c = fx.c, th = r.th, span = clamp(val * .5, -64, 64), p = ap(r, th, rad); c.globalAlpha = a;
+  if (Math.abs(span) > 1.5){ c.strokeStyle = color; c.lineWidth = 5; c.lineCap = 'round'; c.beginPath(); arc(c, r, th, th + span, rad); c.stroke(); const q1 = ap(r, th + span, rad), q0 = ap(r, th + span - Math.sign(span) * 3, rad); head(c, q0[0], q0[1], q1[0], q1[1], 11, color); }
+  chip(c, p[0], p[1], letter, color, clamp(REM * .68, 10, 15)); c.globalAlpha = 1;
+}
+function thrust(P, u, a, warn){
+  const c = fx.c; c.globalAlpha = a; c.lineCap = 'round';
+  for (const [k, sx] of [['tL', -1], ['tR', 1]]){ const lv = clamp(.5 - sx * u / 200, 0, 1), [b, t1] = P[k], len = .25 + 1.25 * lv, x1 = b[0] + (t1[0] - b[0]) * len, y1 = b[1] + (t1[1] - b[1]) * len, col = warn && (lv > .98 || lv < .02) ? WARN : LABEL;
+    c.strokeStyle = col; c.lineWidth = 4; seg2(c, b[0], b[1], x1, y1); head(c, b[0], b[1], x1, y1, 10, col); text(c, Math.round(lv * 100) + '%', x1, y1 - REM * 1.1, `600 ${REM * .95}px ${UI}`, col); }
+  c.globalAlpha = 1;
+}
+function glyph(r){ // the flat stand-in for a drone
+  const c = fx.c, P = (lx, ly) => { const t = r.th * Math.PI / 180, co = Math.cos(t), s = Math.sin(t); return stage.proj(r.x + lx * co + ly * s, r.y - lx * s + ly * co); }, a = P(-1.5, HB), b = P(1.5, HB), piv = P(0, 0), fl = stage.proj(r.x, FLOOR);
+  c.strokeStyle = 'rgba(235,235,245,.4)'; c.lineWidth = 3; seg2(c, piv[0], piv[1], fl[0], fl[1]); seg2(c, fl[0] - 30, fl[1], fl[0] + 30, fl[1]);
+  c.strokeStyle = LABEL; c.lineWidth = 7; c.lineCap = 'round'; seg2(c, a[0], a[1], b[0], b[1]);
+  for (const sx of [-1, 1]){ const m = P(sx * 1.25, HB + .16), lv = clamp(.5 - sx * r.u / 200, 0, 1); c.fillStyle = r.mix ? `rgba(52,194,107,${fmt(.35 + .65 * lv, 2)})` : `rgba(245,245,247,${fmt(.3 + .7 * lv, 2)})`; c.beginPath(); c.ellipse(m[0], m[1], 30, 7, -r.th * Math.PI / 180, 0, 7); c.fill(); }
+  const body = P(0, HB + .18); c.fillStyle = '#3a3a42'; c.beginPath(); c.arc(body[0], body[1], 15, 0, 7); c.fill();
+  if (r.load){ const k = P(1.25, HB - .7); c.fillStyle = '#d8d8dc'; c.fillRect(k[0] - 9, k[1] - 9, 18, 18); }
+}
+fx.draw = function(f, st, dt){
+  const c = this.c; this.t += dt; c.setTransform(this.d, 0, 0, this.d, 0, 0); c.clearRect(0, 0, this.w, this.h);
+  const [A, B] = stage.rig, k = stage.k, narrow = this.w < 860;
+  if (stage.flat){
+    if (stage.sw > .02){ c.globalAlpha = stage.sw; const p = sw.pop, x0 = narrow ? this.w * .06 : this.w * .04, gw = (narrow ? this.w * .88 : this.w * .5) / SWL.cols, y0 = narrow ? this.h * .1 : this.h * .26, gh = (narrow ? this.h * .32 : this.h * .56) / SWL.rows; c.lineCap = 'round'; c.lineWidth = 3;
+      for (let a = 0; a < SWN; a++){ const x = x0 + (swPos.px[a] / SWL.dx + SWL.cols / 2 + .5) * gw, y = y0 + (swPos.pz[a] / SWL.dz + SWL.rows / 2 + .5) * gh, t = p.th[a] * Math.PI / 180, l = gw * .34; c.strokeStyle = sw.state === 'idle' ? L3 : !p.alive[a] ? '#ff453a' : (sw.state === 'select' && p.elite[a]) ? '#fff' : CAI; seg2(c, x - Math.cos(t) * l, y - Math.sin(t) * l, x + Math.cos(t) * l, y + Math.sin(t) * l); }
+      c.globalAlpha = 1; }
+    if (A.on && stage.sw < .5){ glyph(A); if (B.on) glyph(B); }
+  }
+  if (k[0] > .02) { annot(A, 0, 1.8, 2.9, 2.9, k[0], !narrow); if (ch.mode === 'manual') thrust(stage.parts(), ch.u, k[0], false); }
+  if (k[1] > .02){
+    const P = stage.parts(), a = k[1], pts = [P.imu, P.fc, P.mL], real = lp.real, ph = lp.phase, tp = lp.tp / LP_D[ph];
+    annot(A, 0, 2.55, 3.3, 3.3, a * .8, false);
+    c.globalAlpha = a; c.strokeStyle = 'rgba(245,245,247,.34)'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(P.imu[0], P.imu[1]); c.lineTo(P.fc[0], P.fc[1]); c.lineTo(P.mL[0], P.mL[1]); c.moveTo(P.fc[0], P.fc[1]); c.lineTo(P.mR[0], P.mR[1]); c.stroke();
+    if (!narrow){ const lab2 = (p, dx, dy, s, hot) => { const x = p[0] + dx * REM, y = p[1] + dy * REM; c.globalAlpha = a * (.45 + .55 * hot); c.strokeStyle = LABEL; c.lineWidth = 1; seg2(c, p[0], p[1], x, y); c.beginPath(); c.arc(p[0], p[1], 3.5, 0, 7); c.fillStyle = LABEL; c.fill(); text(c, s, x - 6, y, `600 ${REM * 1.05}px ${UI}`, LABEL, 'right'); };
+      lab2(P.imu, -3.2, -2.6, 'חיישן IMU', lp.hot(0)); lab2(P.fc, -5.4, .2, 'בקר טיסה', lp.hot(1)); lab2(P.mL, -2.4, 3.1, 'מנועים', lp.hot(2)); }
+    c.globalAlpha = a; const dot = (p, q, u) => { c.beginPath(); c.arc(p[0] + (q[0] - p[0]) * u, p[1] + (q[1] - p[1]) * u, 5, 0, 7); c.fillStyle = '#fff'; c.fill(); }, ping = (p, u) => { c.strokeStyle = `rgba(255,255,255,${fmt(.8 * (1 - u), 2)})`; c.lineWidth = 2; c.beginPath(); c.arc(p[0], p[1], 6 + 26 * u, 0, 7); c.stroke(); };
+    if (real){ const u = (this.t * 3.2) % 1; if (u < .5) dot(P.imu, P.fc, u * 2); else { dot(P.fc, P.mL, u * 2 - 1); dot(P.fc, P.mR, u * 2 - 1); } }
+    else if (ph === 0) ping(P.imu, (tp * 1.6) % 1);
+    else if (ph === 1){ if (tp < .5) dot(P.imu, P.fc, tp * 2); else ping(P.fc, tp * 2 - 1); }
+    else if (tp < .3){ dot(P.fc, P.mL, tp / .3); dot(P.fc, P.mR, tp / .3); }
+    c.globalAlpha = 1; if (real || ph === 2) thrust(P, lp.uNow, a * (real ? 1 : clamp(tp / .25, 0, 1)), false);
+  }
+  if (k[2] > .02){
+    const a = k[2], o = lab.out, g = lab.g, r0 = narrow ? 2.05 : 2.42;
+    annot(A, lab.sp, 1.8, 2.16, narrow ? 2.16 : 3.05, a, !narrow);
+    if (g.kp) torque(A, o.P, r0, CP, 'P', a); if (g.ki) torque(A, o.I, r0 + .27, CI, 'I', a); if (g.kd) torque(A, o.D, r0 + .54, CD, 'D', a);
+    if (lab.sat > .3){ const p = stage.proj(A.x, A.y + 3.5 * A.s, 0); c.globalAlpha = a * clamp(lab.sat * 1.6, 0, 1); text(c, 'רוויה: המנועים במקסימום', p[0], p[1], `600 ${REM * 1.1}px ${UI}`, WARN); c.globalAlpha = 1; }
+  }
+  if (k[3] > .02){
+    const a = k[3];
+    [[A, 'מקדמים קבועים', LABEL, ad.ea], [B, ad.mode === 'pre' ? (gs.trained() ? 'רשת מכווננת' : 'רשת, לפני אימון') : 'נוירון לומד', CAI, ad.eb]].forEach(([r, name, colr, e]) => { annot(r, ad.r, 1.8, 2.45, 2.45, a, false); const p = stage.proj(r.x, r.y + 3.15 * r.s, 0); c.globalAlpha = a; text(c, name, p[0], p[1] - REM * 1.3, `700 ${REM * 1.2}px ${UI}`, colr); if (ad.t > 2) text(c, `סטייה ממוצעת ${show(Math.sqrt(e), 1)}°`, p[0], p[1], `500 ${REM}px ${UI}`, L2); c.globalAlpha = 1; });
+  }
+};
+
+/* ================= presenter chrome ================= */
+const rail = $('#rail');
+rail.innerHTML = ST.map((s, i) => `<button type="button" aria-pressed="${i === 0}" aria-label="${i ? 'תחנה ' + i + ': ' : ''}${s.name}"><b>${i}</b><em>${s.name}</em></button>`).join('');
+const navSeg = segmented(rail, (i, e) => go(i, e.detail === 0));
+const docks = ST.map((_, i) => $('#d' + i));
+let active = -1, paused = false;
+function go(i, instant){ measure(); if (instant) stage.snap = true; window.scrollTo({ top: tops[i][0], behavior: 'auto' }); }
+$('#brand').addEventListener('click', e => go(0, e.detail === 0));
+function setActive(st){
+  active = st; secs.forEach((s, i) => s.classList.toggle('on', i === st)); navSeg.set(st, RM);
+  docks.forEach((d, i) => { if (!d) return; d.classList.toggle('on', i === st); d.inert = i !== st; });
+  setTune(false); $('#noteSay').textContent = ST[st].say; $('#noteDo').textContent = ST[st].act; clockPaint();
+}
+const clock = { t: 0, on: false };
+function clockPaint(){
+  const left = 300 - clock.t, s = Math.abs(left >= 0 ? Math.ceil(left) : Math.floor(left));
+  $('#clockT').textContent = (left < 0 ? '+' : '') + Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); $('#clock').classList.toggle('over', left < 0);
+  $('#clockI').setAttribute('d', clock.on ? 'M7 5v10M13 5v10' : 'M7 4.5v11l9-5.5z');
+  let acc = 0, pace = -1; if (clock.t > 0) for (let i = 0; i < NST - 1; i++){ acc += ST[i].sec; if (clock.t < acc){ pace = i; break; } } if (clock.t >= 300) pace = NST - 2;
+  navSeg.btns.forEach((d, i) => d.classList.toggle('pace', i === pace && i !== active));
+}
+$('#clock').addEventListener('click', () => { clock.on = !clock.on; clockPaint(); });
+$('#clockR').addEventListener('click', () => { clock.t = 0; clock.on = false; clockPaint(); });
+$('#startB').addEventListener('click', e => { clock.t = 0; clock.on = true; clockPaint(); go(1, e.detail === 0); });
+const notes = $('#notes');
+function toggleNotes(){ const on = !notes.classList.contains('on'); notes.classList.toggle('on', on); $('#notesB').setAttribute('aria-pressed', on); }
+$('#notesB').addEventListener('click', toggleNotes);
+function togglePause(){ paused = !paused; const b = $('#pauseB'); b.setAttribute('aria-pressed', paused); b.setAttribute('aria-label', paused ? 'המשיכו את ההדגמות' : 'השהו את ההדגמות'); }
+$('#pauseB').addEventListener('click', togglePause);
+function fullscreen(){ try { if (document.fullscreenElement) document.exitFullscreen(); else { const p = document.documentElement.requestFullscreen && document.documentElement.requestFullscreen(); if (p && p.catch) p.catch(() => {}); } } catch (e) { /* not available here */ } }
+$('#fsB').addEventListener('click', fullscreen);
+addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return; const t = e.target, k = e.key; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+  const free = !t || t === document.body || t === document.documentElement;
+  if (k >= '0' && k <= String(NST - 1)){ e.preventDefault(); go(+k, true); }
+  else if (k === 'ArrowDown' || k === 'PageDown' || (k === ' ' && free)){ e.preventDefault(); go(Math.min(NST - 1, active + 1)); }
+  else if (k === 'ArrowUp' || k === 'PageUp'){ e.preventDefault(); go(Math.max(0, active - 1)); }
+  else if (k === 'n' || k === 'N' || k === 'מ') toggleNotes();
+  else if (k === 'p' || k === 'P' || k === 'פ') togglePause();
+  else if (k === 'f' || k === 'F' || k === 'כ') fullscreen();
+  else if (k === 'Escape') setTune(false);
+});
+
+/* ================= loop ================= */
+function resizeAll(){ REM = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16; measure(); adChart.resize(); labPlot.resize(); sw.resize(); gs.resize(); hw.resize(); fx.resize(); stage.resize(); segs.forEach(s => s.place(true)); }
+addEventListener('resize', resizeAll);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(resizeAll);
+let last = performance.now(), secAcc = 0;
+document.addEventListener('visibilitychange', () => { last = performance.now(); });
+function frame(now){
+  const dt = Math.min(.05, Math.max(0, (now - last) / 1000)); last = now;
+  const f = scrollF(), st = clamp(Math.round(f), 0, NST - 1);
+  if (st !== active) setActive(st);
+  if (clock.on){ clock.t += dt; secAcc += dt; if (secAcc > .25){ secAcc = 0; clockPaint(); } }
+  if (!paused){ if (st === 1) advance(ch, dt); else if (st === 2) lp.tick(dt); else if (st === 3) advance(lab, dt); else if (st === 4){ advance(ad, dt); gs.tick(dt); } else if (st === 5) sw.tick(dt); }
+  if (st === 1) ch.paint(); else if (st === 2) lp.paint(); else if (st === 3) lab.paint(); else if (st === 4) ad.paint(); else if (st === 5) sw.paint(dt); else if (st === 6) hw.paint(dt);
+  let a = {}, b = {};
+  if (st === 1) a = { th: ch.s.th, u: ch.u };
+  else if (st === 2){ a = { th: lp.s.th, u: lp.real || lp.phase === 2 ? lp.uNow : 0 }; stage.hl = lp.real ? 3 : lp.phase; }
+  else if (st === 3) a = { th: lab.s.th, u: lab.out.u, load: lab.par.d > 0 };
+  else if (st === 4){ a = { th: ad.sa.th, u: ad.ua, load: ad.par.d > 0, weak: ad.par.eff < 1 }; b = { th: ad.sb.th, u: ad.ub, load: ad.par.d > 0, weak: ad.par.eff < 1, ai: true }; }
+  else if (st === 5) a = { th: 0, ai: true };
+  stage.update(dt, f, st, a, b, paused, sw);
+  fx.draw(f, st, dt);
+  requestAnimationFrame(frame);
+}
+// initial state
+presetSeg.set(0, true); applyPreset('p'); sw.init(); showQ(); gs.ui(); hw.build(); lp.gust(); lp.meas = lp.s.th; lp.text(); resizeAll();
+for (let i = 0; i < 480; i++){ lab.step(); ch.step(); ad.step(); } // two seconds of history so the charts are not empty at rest
+ch.paint(); lp.paint(); lab.paint(); ad.paint(); sw.paint(0);
+stage.live = true; app.classList.add('anim');
+const hs = /^#s([0-8])$/.exec(location.hash || ''); if (hs) go(+hs[1], true);
+requestAnimationFrame(frame);
+})();

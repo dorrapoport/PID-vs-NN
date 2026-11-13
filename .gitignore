@@ -1,0 +1,3 @@
+# source papers stay local (copyrighted); they are cited on the site
+*.pdf
+.DS_Store
