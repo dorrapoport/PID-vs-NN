@@ -333,6 +333,18 @@ input[type=range]::-moz-range-thumb{width:1.4rem;height:1.4rem;border:0;border-r
   .bars{gap:1.2rem}.takes{gap:1.2rem}.takes span{font-size:1rem}
   .quiz .q{font-size:1.35rem}.quiz .opts .btn{min-height:2.9rem;font-size:1rem;padding:0 1.1rem}
 }
+
+/* keyboard: key caps on buttons, the shortcut list */
+kbd{font-family:var(--f-num);font-size:.78rem;font-weight:600;direction:ltr;unicode-bidi:isolate}
+.kc{display:inline-grid;place-items:center;min-width:1.3rem;height:1.3rem;padding:0 .3rem;border-radius:.35rem;background:rgba(255,255,255,.12);box-shadow:inset 0 -1px 0 rgba(255,255,255,.12);color:inherit;opacity:.75;margin-inline-start:.1rem}
+.btn.primary .kc{background:rgba(0,0,0,.12)}
+.kpress{transform:scale(.97)}
+#keys{position:fixed;z-index:19;inset:calc(4.2rem + env(safe-area-inset-top,0px)) auto auto max(16px,env(safe-area-inset-left,0px));width:min(30rem,calc(100vw - 32px));max-height:calc(100svh - 6rem);overflow:auto;transform-origin:0 0;gap:1rem}
+#keys h3{font-size:.85rem;font-weight:600;color:var(--label-2);margin-bottom:.35rem}
+.klist{display:grid;gap:.35rem}
+.klist li{display:grid;grid-template-columns:4.6rem minmax(0,1fr);gap:.7rem;align-items:center;font-size:.95rem}
+.klist kbd{justify-self:start;padding:.15rem .45rem;border-radius:.4rem;background:var(--fill);box-shadow:inset 0 -1px 0 rgba(255,255,255,.14);white-space:nowrap}
+@media (pointer:coarse){#keysB{display:none}}
 </style>
 <!--BODY-->
 <div id="app" dir="rtl" lang="he">
@@ -347,6 +359,7 @@ input[type=range]::-moz-range-thumb{width:1.4rem;height:1.4rem;border:0;border-r
     <button class="tool clock" id="clock" type="button" aria-label="שעון הרצאה של חמש דקות. לחצו להתחלה או לעצירה" title="שעון הרצאה"><span class="num" id="clockT">5:00</span><svg viewBox="0 0 20 20" aria-hidden="true"><path id="clockI" d="M7 4.5v11l9-5.5z"/></svg></button>
     <button class="tool wide" id="clockR" type="button" aria-label="אפסו את השעון" title="אפסו את השעון"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10a6 6 0 1 0 2-4.5M4 3.5v3h3"/></svg></button>
     <span class="tsep" aria-hidden="true"></span>
+    <button class="tool" id="keysB" type="button" aria-pressed="false" aria-label="קיצורי מקלדת" title="קיצורי מקלדת (?)"><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2.5" y="5" width="15" height="10" rx="2"/><path d="M5.5 8h1M9.5 8h1M13.5 8h1M7 12h6"/></svg></button>
     <button class="tool" id="notesB" type="button" aria-pressed="false" aria-label="הערות למרצה" title="הערות למרצה (N)"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 5.5h12M4 10h12M4 14.5h7"/></svg></button>
     <button class="tool wide" id="pauseB" type="button" aria-pressed="false" aria-label="השהו את ההדגמות" title="השהו את ההדגמות (P)"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7 5v10M13 5v10"/></svg></button>
     <button class="tool wide" id="fsB" type="button" aria-label="מסך מלא" title="מסך מלא (F)"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 8V4h4M16 8V4h-4M4 12v4h4M16 12v4h-4"/></svg></button>
@@ -360,7 +373,7 @@ input[type=range]::-moz-range-thumb{width:1.4rem;height:1.4rem;border:0;border-r
     <p class="eyebrow">הרצאה של חמש דקות. כל ההדגמות חיות.</p>
     <h1>איך רחפן נשאר ישר?</h1>
     <p class="lead">שלושה מספרים מחזיקים אותו באוויר כבר עשרות שנים. רשתות נוירונים מציעות דרך אחרת. נראה איך כל שיטה עובדת, ומה היא עולה.</p>
-    <div class="row"><button class="btn primary big" id="startB" type="button">התחילו</button><span class="hint">← או רווח לתחנה הבאה, → לקודמת. N פותח הערות למרצה.</span></div>
+    <div class="row"><button class="btn primary big" id="startB" type="button">התחילו</button><span class="hint">הכול עובד מהמקלדת: ↓ או רווח לתחנה הבאה, ? לרשימת המקשים.</span></div>
   </div></div>
 </section>
 
@@ -611,6 +624,18 @@ input[type=range]::-moz-range-thumb{width:1.4rem;height:1.4rem;border:0;border-r
   </div>
 </div>
 
+<aside class="pop glass" id="keys" aria-label="קיצורי מקלדת">
+  <div><h3 id="keysStT">בתחנה</h3><ul class="klist" id="keysSt"></ul></div>
+  <div><h3>בכל מקום</h3><ul class="klist">
+    <li><kbd>↓ ↑</kbd><span>תחנה הבאה / קודמת (גם רווח, ← →)</span></li>
+    <li><kbd>⇧ 0–8</kbd><span>קפיצה לתחנה</span></li>
+    <li><kbd>K</kbd><span>שעון: הפעלה / עצירה. ⇧K מאפס</span></li>
+    <li><kbd>P</kbd><span>השהיית ההדגמות</span></li>
+    <li><kbd>N</kbd><span>הערות למרצה</span></li>
+    <li><kbd>F</kbd><span>מסך מלא</span></li>
+    <li><kbd>?</kbd><span>הרשימה הזו. Esc סוגר</span></li>
+  </ul></div>
+</aside>
 <aside class="pop glass" id="notes" aria-label="הערות למרצה">
   <div><h3>מה להגיד</h3><p id="noteSay"></p></div>
   <div><h3>מה ללחוץ</h3><p id="noteDo"></p></div>
