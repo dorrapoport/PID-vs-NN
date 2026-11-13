@@ -25,4 +25,4 @@
 - `site/src/app.js`: ממשק ובמה תלת-ממדית
 - `site/build.sh`: בונה את `site/index.html` (עותק עצמאי שעובד גם בלי אינטרנט) ואת `site/page.html`
 
-אחרי עריכה ב-`site/src/` מריצים `sh site/build.sh`. כל דחיפה ל-`main` מפרסמת את האתר מחדש ב-GitHub Pages.
+אחרי עריכה ב-`site/src/` מריצים `sh site/build.sh`. כל דחיפה ל-`main` בונה את האתר ומעדכנת את הענף `gh-pages`, שממנו GitHub Pages מגיש אותו.
