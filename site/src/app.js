@@ -17,7 +17,7 @@ let REM = 16;
 // need: how many world units have to fit in the part of the screen the text leaves free
 const ST = [
   { name: 'פתיחה', sec: 15, shot: [28, 12, 7.4, -.2, -.03, 0, 0, 0, 0, 1, 0],
-    say: 'מי ניסה פעם לאזן מטאטא על כף היד? רחפן עושה את זה כל הזמן, עם ארבעה מנועים, ובלי להתעייף.', act: '״התחילו״ מפעיל את השעון ועובר לתחנה 1. חצים או רווח מקדמים תחנה. ? מציג את כל המקשים.' },
+    say: 'מי ניסה פעם לאזן מטאטא על כף היד? רחפן עושה את זה כל הזמן, עם ארבעה מנועים, ובלי להתעייף.', act: '״התחילו״ מפעיל את השעון ועובר לתחנה 1. ↓ ↑ עוברים תחנה, ← → בין הכפתורים, רווח בוחר. ? מציג את כל המקשים.' },
   { name: 'האתגר', sec: 30, need: 6.8, shot: [12, 8, 7.6, -.23, .03, 0, 1, 0, 0, 0, 0],
     say: 'בקשו מתנדב. בני אדם מגיבים בערך ברבע שנייה, וזה איטי מדי. צריך משהו שמודד ומתקן לבד.', act: '״אני מחזיק/ה״ וגוררים את הידית. אחרי הנפילה הבקר חוזר לבד.' },
   { name: 'הלולאה', sec: 20, need: 7.4, shot: [-30, 24, 9.6, -.2, 0, 1, 0, 0, 0, 0, 0],
@@ -993,6 +993,7 @@ $('#brand').addEventListener('click', e => go(0, e.detail === 0));
 function setActive(st){
   active = st; secs.forEach((s, i) => s.classList.toggle('on', i === st)); navSeg.set(st, RM);
   docks.forEach((d, i) => { if (!d) return; d.classList.toggle('on', i === st); d.inert = i !== st; });
+  { const f = document.activeElement; if (f && f.closest && f.closest('.docks, #quiz')) f.blur(); }
   setTune(false); if (keysPop && keysPop.classList.contains('on')) keysPaint(); $('#noteSay').textContent = ST[st].say; $('#noteDo').textContent = ST[st].act; clockPaint();
 }
 const clock = { t: 0, on: false };
@@ -1019,9 +1020,9 @@ $('#fsB').addEventListener('click', fullscreen);
    physical position (e.code), so they work with the Hebrew layout too. */
 const KEYMAP = [
   { Enter: ['#startB', 'התחילו'] },
-  { Enter: ['#chGo', 'אני מחזיק/ה'], '← →': [null, 'הטיית הרחפן (מחזיקים את המקש)'] },
+  { Enter: ['#chGo', 'אני מחזיק/ה'], '← →': [null, 'הטיית הרחפן (מחזיקים את המקש)'], 'רווח': [null, 'אני מחזיק/ה'] },
   { seg: '#lpSeg', KeyG: ['#lpGust', 'משב רוח'] },
-  { seg: '#presets', KeyG: ['#gustB', 'משב רוח'], KeyT: ['#tuneB', 'כוונון ידני'], KeyY: ['#spB', 'יעד 15°'], KeyL: ['#loadB', 'מטען בצד'], KeyX: ['#noiseB', 'רעש בחיישן'],
+  { seg: '#presets', KeyG: ['#gustB', 'משב רוח'], KeyT: ['#tuneB', 'כוונון ידני (בפנים: ↑↓ שורה, ← → ערך, Esc סוגר)'], KeyY: ['#spB', 'יעד 15°'], KeyL: ['#loadB', 'מטען בצד'], KeyX: ['#noiseB', 'רעש בחיישן'],
     'Q / A': [null, 'Kp למעלה / למטה'], 'W / S': [null, 'Ki למעלה / למטה'], 'E / D': [null, 'Kd למעלה / למטה'] },
   { seg: '#gvSeg', Enter: ['#gsGo', 'אספו דוגמאות / אמנו'], KeyL: ['#adLoad', 'מטען בצד'], KeyB: ['#adBatt', 'סוללה חלשה'], KeyZ: ['#adFast', 'למידה מהירה פי 8'], KeyR: ['#adReset', 'אפסו'] },
   { Enter: ['#swGo', 'התחילו / עצרו אימון'], KeyG: ['#swGust', 'משב רוח'], KeyW: ['#swWind', 'רוח צד קבועה'], KeyR: ['#swReset', 'אפסו'] },
@@ -1049,17 +1050,56 @@ function keysPaint(){
 function toggleKeys(on = !keysPop.classList.contains('on')){ if (on) keysPaint(); keysPop.classList.toggle('on', on); $('#keysB').setAttribute('aria-pressed', on); }
 $('#keysB').addEventListener('click', () => toggleKeys());
 const tiltKey = (type, key) => $('#pad').dispatchEvent(new KeyboardEvent(type, { key }));
+/* focus moves through the controls of the current station in reading order: the bottom bar, and in station 7 the vote.
+   The bar's DOM order runs right to left on screen, so ← is "next" and → is "previous". */
+function barItems(){
+  const d = docks[active], list = d ? $$('button', d).filter(usable) : [];
+  if (active === 7 && !$('#tv2').hidden) list.push(...$$('#qzO button, #qzNext').filter(usable));
+  return list;
+}
+const focusEl = el => { if (el){ el.focus({ preventScroll: true }); } return !!el; };
+// the manual-tuning popover is a vertical menu: three gain sliders, then a row of buttons
+function tuneRows(){ return [[$('#kp')], [$('#ki')], [$('#kd')], $$('#tune .row button, #tune button:not(.gain button)').filter((b, i, a) => usable(b) && a.indexOf(b) === i)].filter(r => r.length && usable(r[0])); }
+function tuneKey(e){
+  const k = e.key, rows = tuneRows(), a = document.activeElement; let ri = rows.findIndex(r => r.includes(a)); const ci = ri >= 0 ? rows[ri].indexOf(a) : 0;
+  if (k === 'ArrowUp' || k === 'ArrowDown'){ ri = ri < 0 ? 0 : clamp(ri + (k === 'ArrowDown' ? 1 : -1), 0, rows.length - 1); return focusEl(rows[ri][0]); }
+  if (k === 'ArrowLeft' || k === 'ArrowRight'){
+    if (ri < 0) return focusEl(rows[0][0]);
+    if (a.type === 'range'){ // the track fills from the right, so ← raises the value
+      if (k === 'ArrowLeft') a.stepUp(e.shiftKey ? 10 : 2); else a.stepDown(e.shiftKey ? 10 : 2); a.dispatchEvent(new Event('input', { bubbles: true })); return true; }
+    return focusEl(rows[ri][clamp(ci + (k === 'ArrowLeft' ? 1 : -1), 0, rows[ri].length - 1)]);
+  }
+  if (k === ' ' || k === 'Enter'){ if (a && a.tagName === 'BUTTON' && tune.contains(a)) press(a); else if (ri < 0) focusEl(rows[0][0]); return true; }
+  if (k === 'Escape' || e.code === 'KeyT'){ setTune(false); focusEl(tuneB); return true; }
+  return false;
+}
 let navTo = 0, navAt = 0;
 addEventListener('keydown', e => {
   if (e.metaKey || e.ctrlKey || e.altKey) return; const t = e.target, k = e.key, c = e.code; if (t && (t.tagName === 'TEXTAREA' || t.isContentEditable || (t.tagName === 'INPUT' && t.type !== 'range'))) return;
-  const free = !t || t === document.body || t === document.documentElement, m = KEYMAP[active] || {};
+  const m = KEYMAP[active] || {};
   if (t && t.closest && t.closest('[role="slider"]') && (k === 'ArrowLeft' || k === 'ArrowRight')) return; // the tilt handle reads these itself
-  if (t && t.type === 'range' && k.startsWith('Arrow')) return;                                            // so does a focused gain slider
-  // station 1: left/right hold the drone, as if dragging the handle
+  // an open tuning menu takes the arrows, space and Esc until it closes
+  if (active === 3 && tune.classList.contains('on') && (k.startsWith('Arrow') || k === ' ' || k === 'Enter' || k === 'Escape' || c === 'KeyT')){ if (tuneKey(e)) e.preventDefault(); return; }
+  // station 1: left/right hold the drone, as if dragging the handle; space is "I'm holding"
   if (active === 1 && (k === 'ArrowLeft' || k === 'ArrowRight')){ e.preventDefault(); if (!e.repeat) tiltKey('keydown', k); return; }
+  if (active === 1 && k === ' '){ e.preventDefault(); press($('#chGo')); return; }
+  // left/right: move between the controls of this station; space: choose the one in focus
+  if (k === 'ArrowLeft' || k === 'ArrowRight'){
+    e.preventDefault(); const items = barItems(); if (!items.length) return; const i = items.indexOf(document.activeElement);
+    if (i < 0) focusEl(items.find(b => b.getAttribute('aria-pressed') === 'true' && b.parentNode.classList.contains('seg')) || items[0]);
+    else focusEl(items[clamp(i + (k === 'ArrowLeft' ? 1 : -1), 0, items.length - 1)]);
+    return;
+  }
+  if (k === ' '){
+    e.preventDefault(); const items = barItems(), a = document.activeElement;
+    if (items.includes(a)){ press(a); if (a === tuneB && tune.classList.contains('on')) focusEl($('#kp')); if (!usable(a)) focusEl(barItems()[0]); }
+    else focusEl(items.find(b => b.getAttribute('aria-pressed') === 'true' && b.parentNode.classList.contains('seg')) || items[0]);
+    return;
+  }
+  // up/down: the previous or next station. Quick repeated presses keep counting from the last target
   const step = d => { const from = performance.now() - navAt < 700 ? navTo : active; navTo = clamp(from + d, 0, NST - 1); navAt = performance.now(); go(navTo); };
-  if (k === 'ArrowDown' || k === 'ArrowLeft' || k === 'PageDown' || (k === ' ' && free)){ e.preventDefault(); step(1); return; }
-  if (k === 'ArrowUp' || k === 'ArrowRight' || k === 'PageUp'){ e.preventDefault(); step(-1); return; }
+  if (k === 'ArrowDown' || k === 'PageDown'){ e.preventDefault(); step(1); return; }
+  if (k === 'ArrowUp' || k === 'PageUp'){ e.preventDefault(); step(-1); return; }
   if (k === 'Home'){ e.preventDefault(); go(0); return; }
   if (k === 'End'){ e.preventDefault(); go(NST - 1); return; }
   const dig = /^(?:Digit|Numpad)([0-9])$/.exec(c);
@@ -1067,6 +1107,7 @@ addEventListener('keydown', e => {
   if (dig){ const bs = m.seg ? $$(':scope > button', $(m.seg)) : [], b = bs[+dig[1] - 1]; if (b){ e.preventDefault(); press(b); } return; }
   if (active === 7 && !$('#tv2').hidden && /^Key[ABC]$/.test(c)){ e.preventDefault(); press($$('#qzO button')[c.charCodeAt(3) - 65]); return; }
   if (active === 3 && GAINKEYS[c]){ e.preventDefault(); const [g, d] = GAINKEYS[c], el = sliders[g][0]; if (d > 0) el.stepUp(5); else el.stepDown(5); el.dispatchEvent(new Event('input', { bubbles: true })); if (!tune.classList.contains('on')) setTune(true); return; }
+  if (c === 'KeyT' && active === 3){ e.preventDefault(); press(tuneB); if (tune.classList.contains('on')) focusEl($('#kp')); return; }
   if (m[c] && m[c][0] && (c !== 'Enter' || !(t && t.closest && t.closest('button')))){ if (press($(m[c][0]))) e.preventDefault(); return; }
   if (c === 'KeyN') toggleNotes();
   else if (c === 'KeyP') togglePause();

@@ -334,7 +334,9 @@ input[type=range]::-moz-range-thumb{width:1.4rem;height:1.4rem;border:0;border-r
   .quiz .q{font-size:1.35rem}.quiz .opts .btn{min-height:2.9rem;font-size:1rem;padding:0 1.1rem}
 }
 
-/* keyboard: key caps on buttons, the shortcut list */
+/* keyboard: key caps on buttons, the shortcut list, a clear ring on the control in focus */
+.dock button:focus-visible,#tune :focus-visible,#quiz button:focus-visible{outline:2.5px solid var(--label);outline-offset:3px}
+.seg>button:focus-visible{outline-offset:1px}
 kbd{font-family:var(--f-num);font-size:.78rem;font-weight:600;direction:ltr;unicode-bidi:isolate}
 .kc{display:inline-grid;place-items:center;min-width:1.3rem;height:1.3rem;padding:0 .3rem;border-radius:.35rem;background:rgba(255,255,255,.12);box-shadow:inset 0 -1px 0 rgba(255,255,255,.12);color:inherit;opacity:.75;margin-inline-start:.1rem}
 .btn.primary .kc{background:rgba(0,0,0,.12)}
@@ -373,7 +375,7 @@ kbd{font-family:var(--f-num);font-size:.78rem;font-weight:600;direction:ltr;unic
     <p class="eyebrow">הרצאה של חמש דקות. כל ההדגמות חיות.</p>
     <h1>איך רחפן נשאר ישר?</h1>
     <p class="lead">שלושה מספרים מחזיקים אותו באוויר כבר עשרות שנים. רשתות נוירונים מציעות דרך אחרת. נראה איך כל שיטה עובדת, ומה היא עולה.</p>
-    <div class="row"><button class="btn primary big" id="startB" type="button">התחילו</button><span class="hint">הכול עובד מהמקלדת: ↓ או רווח לתחנה הבאה, ? לרשימת המקשים.</span></div>
+    <div class="row"><button class="btn primary big" id="startB" type="button">התחילו</button><span class="hint">הכול עובד מהמקלדת: ↓ לתחנה הבאה, ← → בין הכפתורים, רווח בוחר, ? לרשימת המקשים.</span></div>
   </div></div>
 </section>
 
@@ -627,7 +629,9 @@ kbd{font-family:var(--f-num);font-size:.78rem;font-weight:600;direction:ltr;unic
 <aside class="pop glass" id="keys" aria-label="קיצורי מקלדת">
   <div><h3 id="keysStT">בתחנה</h3><ul class="klist" id="keysSt"></ul></div>
   <div><h3>בכל מקום</h3><ul class="klist">
-    <li><kbd>↓ ↑</kbd><span>תחנה הבאה / קודמת (גם רווח, ← →)</span></li>
+    <li><kbd>↓ ↑</kbd><span>תחנה הבאה / קודמת</span></li>
+    <li><kbd>← →</kbd><span>מעבר בין הכפתורים של התחנה</span></li>
+    <li><kbd>רווח</kbd><span>בחירה בכפתור המסומן</span></li>
     <li><kbd>⇧ 0–8</kbd><span>קפיצה לתחנה</span></li>
     <li><kbd>K</kbd><span>שעון: הפעלה / עצירה. ⇧K מאפס</span></li>
     <li><kbd>P</kbd><span>השהיית ההדגמות</span></li>
