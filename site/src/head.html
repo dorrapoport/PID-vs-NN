@@ -15,19 +15,21 @@
   --ease-out:cubic-bezier(.23,1,.32,1); --ease-in-out:cubic-bezier(.77,0,.175,1); --ease-drawer:cubic-bezier(.32,.72,0,1);
   --col:min(35rem,45vw);
 }
-html{font-size:clamp(16px,.62vw + .78vh,22px);scroll-snap-type:y proximity;background:var(--bg)}
+html{font-size:clamp(16px,.62vw + .78vh,22px);scroll-snap-type:y proximity;background:var(--bg);-webkit-text-size-adjust:100%;text-size-adjust:100%}
+html,body{overflow-x:clip}
 body{background:var(--bg);color:var(--label);font-family:var(--f-ui);font-size:1.0625rem;line-height:1.45;overflow-x:hidden;-webkit-font-smoothing:antialiased}
 *,*::before,*::after{box-sizing:border-box}
 h1,h2,h3,p,ul,ol,figure,dl,dd{margin:0}
 ul,ol{padding:0;list-style:none}
 button,input{font:inherit;color:inherit}
-button{-webkit-tap-highlight-color:transparent}
+button,a,[role=slider]{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.dock,.bar,.tools{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 :focus-visible{outline:2px solid var(--label);outline-offset:2px}
 .ltr{direction:ltr;unicode-bidi:isolate}
 .num{font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate}
 
 /* ---------- stage ---------- */
-#stage,#fx{position:fixed;inset:0;width:100%;height:100%;display:block;pointer-events:none}
+#stage,#fx{position:fixed;inset:0 0 auto 0;width:100%;height:100vh;height:100lvh;display:block;pointer-events:none}
 #stage{background:radial-gradient(58% 54% at 34% 44%,#202024 0%,#0b0b0d 52%,#000 100%)}
 #stage.cut{transition:opacity 220ms ease}
 .shade{position:fixed;inset:0;pointer-events:none;background:var(--bg);opacity:0}
@@ -108,6 +110,10 @@ h3{font-size:1.0625rem;font-weight:600}
   .anim .st.on .col>:nth-child(5){transition-delay:200ms}.anim .st.on .col>:nth-child(n+6){transition-delay:250ms}
 }
 @media (prefers-reduced-motion:reduce){.anim .st .col>*{opacity:0;transition:opacity 200ms ease}.anim .st.on .col>*{opacity:1}}
+/* phones reveal each element as it reaches the screen: a short rise, no blur */
+.anim.reveal .st .col>*,.anim.reveal .st.on .col>*{opacity:0;transform:translateY(14px);filter:none;transition:opacity 520ms var(--ease-out),transform 520ms var(--ease-out);transition-delay:0ms}
+.anim.reveal .st .col>.seen{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){.anim.reveal .st .col>*,.anim.reveal .st.on .col>*{transform:none;transition:opacity 200ms ease}}
 
 .chip{display:inline-grid;place-items:center;min-width:1.6rem;height:1.6rem;padding:0 .3rem;border-radius:999px;background:var(--c);color:#000;font-weight:700;font-size:.9rem;direction:ltr;flex:none}
 .stat{display:grid;gap:.1rem;min-width:0}
@@ -305,6 +311,14 @@ input[type=range]::-moz-range-thumb{width:1.4rem;height:1.4rem;border:0;border-r
   .dock{border-radius:1.6rem}.dsep{display:none}
   .gain{grid-template-columns:auto minmax(0,1fr) 3rem}.gain input{grid-column:1/-1;order:2}.gain output{order:1}
   canvas.plot{height:11rem}
+  /* phone: no snapping (stations are taller than the screen), and each station's text rides on a black sheet that
+     slides up over the fixed 3D stage with a soft top edge, instead of a darkening layer that ends in a hard line */
+  html{scroll-snap-type:none}
+  .st.rig::before,.st.field::before{display:none}
+  .st .wrap{position:relative;isolation:isolate}
+  .st .wrap::before{content:"";position:absolute;z-index:-1;top:-5.5rem;bottom:-3rem;left:calc(-1 * max(16px,env(safe-area-inset-left,0px)));right:calc(-1 * max(16px,env(safe-area-inset-right,0px)));pointer-events:none;
+    background:linear-gradient(to bottom,rgba(0,0,0,0) 0,rgba(0,0,0,.72) 2.6rem,#000 5.5rem,#000 calc(100% - 3rem),rgba(0,0,0,0) 100%)}
+  .glass{-webkit-backdrop-filter:blur(20px) saturate(1.6);backdrop-filter:blur(20px) saturate(1.6)}
   /* phone: compact type, the 3D drone keeps the top third, and the dock is one swipeable row */
   html{font-size:15px}
   h1{font-size:2.6rem}.st h2{font-size:1.85rem}.lead,.hero .lead{font-size:1.05rem}.say{font-size:1rem;min-height:0}

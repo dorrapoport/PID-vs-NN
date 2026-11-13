@@ -4,6 +4,7 @@ const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [..
 const app = $('#app');
 document.documentElement.lang = 'he'; document.documentElement.dir = 'rtl';
 const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const TOUCH = matchMedia('(pointer: coarse)').matches; // phones and tablets: lighter rendering, viewport-height changes ignored
 const fmt = (v, n = 1) => { const s = v.toFixed(n); return +s === 0 ? (0).toFixed(n) : s; };
 const show = (v, n = 1) => fmt(v, n).replace('-', '−');                       // for people: a real minus sign
 const pct = v => (v > 0 && Math.round(v) !== 0 ? '+' : '') + show(v, 0) + '%';
@@ -672,7 +673,7 @@ const Y0 = .46, FLOOR = -2.6, HB = Y0 + .06; // the body sits above the pivot, l
 function makeStage(){
   const T = window.THREE, cv = $('#stage'); if (!T) return null;
   let R; try { R = new T.WebGLRenderer({ canvas: cv, antialias: true, alpha: true, powerPreference: 'high-performance' }); } catch (e) { return null; }
-  R.setPixelRatio(Math.min(2, devicePixelRatio || 1)); R.outputEncoding = T.sRGBEncoding; R.toneMapping = T.ACESFilmicToneMapping; R.toneMappingExposure = 1.2; R.setClearColor(0x000000, 0);
+  R.setPixelRatio(Math.min(TOUCH ? 1.5 : 2, devicePixelRatio || 1)); R.outputEncoding = T.sRGBEncoding; R.toneMapping = T.ACESFilmicToneMapping; R.toneMappingExposure = 1.2; R.setClearColor(0x000000, 0);
   R.shadowMap.enabled = true; R.shadowMap.type = T.PCFSoftShadowMap;
   const col = h => new T.Color(h).convertSRGBToLinear();
   const scene = new T.Scene(); scene.fog = new T.Fog(0x000000, 42, 135);
@@ -684,7 +685,7 @@ function makeStage(){
     const pm = new T.PMREMGenerator(R); scene.environment = pm.fromScene(es, .04).texture; pm.dispose();
   } catch (e) { /* lights alone still work */ }
   scene.add(new T.HemisphereLight(0xffffff, 0x060608, .42));
-  const key = new T.DirectionalLight(0xffffff, 1.5); key.position.set(3.5, 7, 5); key.castShadow = true; key.shadow.mapSize.set(2048, 2048);
+  const key = new T.DirectionalLight(0xffffff, 1.5); key.position.set(3.5, 7, 5); key.castShadow = true; key.shadow.mapSize.set(TOUCH ? 1024 : 2048, TOUCH ? 1024 : 2048);
   Object.assign(key.shadow.camera, { left: -7, right: 7, top: 7, bottom: -7, near: 1, far: 24 }); key.shadow.camera.updateProjectionMatrix(); key.shadow.bias = -.0006; key.shadow.radius = 4; scene.add(key);
   const rim = new T.DirectionalLight(0xa8c4ff, 1.1); rim.position.set(-6, 3, -5); scene.add(rim);
   const warm = new T.PointLight(0xffb080, .7, 30); warm.position.set(6, 1.5, -3); scene.add(warm);
@@ -955,7 +956,7 @@ function makeStage(){
         const op = clamp((swp - .2) / .6, 0, 1); mBody.opacity = op; mStand.opacity = op; mDisc.opacity = .62 * op;
       }
       shade.style.opacity = fmt(dim, 3);
-      R.render(scene, cam);
+      if (dim < .95 || !this.drewDim){ R.render(scene, cam); this.drewDim = dim >= .95; }
     },
   };
 }
@@ -981,7 +982,7 @@ if (!stage){ app.classList.add('no3d'); stage = makeFlat(); }
 
 /* ================= what is drawn on the stage ================= */
 const fx = { cv: $('#fx'), c: $('#fx').getContext('2d'), w: 0, h: 0, d: 1, t: 0,
-  resize(){ this.d = Math.min(2, devicePixelRatio || 1); this.w = innerWidth; this.h = innerHeight; this.cv.width = Math.round(this.w * this.d); this.cv.height = Math.round(this.h * this.d); } };
+  resize(){ this.d = Math.min(2, devicePixelRatio || 1); this.w = this.cv.clientWidth || innerWidth; this.h = this.cv.clientHeight || innerHeight; this.cv.width = Math.round(this.w * this.d); this.cv.height = Math.round(this.h * this.d); } };
 // a point at angle phi (degrees, positive = right side down) and distance rad from the middle of the drone's body
 function ap(r, phi, rad){ const t = r.th * Math.PI / 180, p = phi * Math.PI / 180; return stage.proj(r.x + (HB * Math.sin(t) + rad * Math.cos(p)) * r.s, r.y + (HB * Math.cos(t) - rad * Math.sin(p)) * r.s, 0); }
 function arc(c, r, a0, a1, rad, cont){ const n = Math.max(2, Math.ceil(Math.abs(a1 - a0) / 2)); for (let i = 0; i <= n; i++){ const [x, y] = ap(r, a0 + (a1 - a0) * i / n, rad); if (i || cont) c.lineTo(x, y); else c.moveTo(x, y); } }
@@ -1196,7 +1197,8 @@ addEventListener('keyup', e => { if (active === 1 && (e.key === 'ArrowLeft' || e
 
 /* ================= loop ================= */
 function resizeAll(){ REM = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16; measure(); adChart.resize(); labPlot.resize(); sw.resize(); gs.resize(); hw.resize(); nn.resize(); fx.resize(); stage.resize(); segs.forEach(s => s.place(true)); }
-addEventListener('resize', resizeAll);
+let lastW = innerWidth;
+addEventListener('resize', () => { if (TOUCH && innerWidth === lastW){ measure(); return; } lastW = innerWidth; resizeAll(); });
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(resizeAll);
 let last = performance.now(), secAcc = 0;
 document.addEventListener('visibilitychange', () => { last = performance.now(); });
@@ -1222,6 +1224,11 @@ presetSeg.set(0, true); applyPreset('p'); nn.set(0); sw.init(); showQ(); gs.ui()
 for (let i = 0; i < 480; i++){ lab.step(); ch.step(); ad.step(); } // two seconds of history so the charts are not empty at rest
 ch.paint(); lp.paint(); lab.paint(); ad.paint(); sw.paint(0);
 stage.live = true; app.classList.add('anim');
+if (matchMedia('(max-width: 860px)').matches && 'IntersectionObserver' in window){
+  app.classList.add('reveal');
+  const io = new IntersectionObserver(es => { for (const en of es) if (en.isIntersecting){ en.target.classList.add('seen'); io.unobserve(en.target); } }, { rootMargin: '0px 0px -8% 0px' });
+  $$('.st .col > *').forEach(el => io.observe(el));
+}
 const hs = /^#s([0-9])$/.exec(location.hash || ''); if (hs) go(+hs[1], true);
 requestAnimationFrame(frame);
 })();
