@@ -281,7 +281,7 @@ const ad = { acc: 0, k: 0, t: 0, r: 0, sa: makePlant(0), sb: makePlant(0), pid: 
     adChart.draw();
   },
 };
-toggle('#adLoad', on => { ad.par.d = on ? 220 : 0; gs.ui(); });
+toggle('#adLoad', on => { ad.par.d = on ? 400 : 0; gs.ui(); });
 toggle('#adBatt', on => { ad.par.eff = on ? .55 : 1; gs.ui(); });
 toggle('#adFast', on => { ad.rate = on ? 8 : 1; });
 $('#adReset').addEventListener('click', () => { ad.reset(); if (ad.mode === 'pre') gs.reset(); });
@@ -312,12 +312,16 @@ const gs = { state: 'idle', X: [], Y: [], T: [], i: 0, acc: 0, net: gsNet(), ep:
     const g = ad.gB, load = ad.par.d > 0, batt = ad.par.eff < 1;
     $('#gsO2').textContent = st === 'done' ? `Kp ${fmt(g.kp, 1)} · Ki ${fmt(g.ki, 1)} · Kd ${fmt(g.kd, 2)}` : '–';
     const key = st + (load ? 'L' : '') + (batt ? 'B' : ''); if (key === this.last) return; this.last = key; const say = $('#gsSay');
-    if (st === 'idle') say.innerHTML = 'בשני הרחפנים אותו PID. לאחד מקדמים קבועים שכוונו לסוללה מלאה ובלי מטען. לשני הרשת תבחר מקדמים, אחרי שנאמן אותה.';
+    const same = '<b>כרגע שני הרחפנים זהים:</b> הרשת עוד לא אומנה, אז היא נותנת בדיוק את המקדמים הקבועים, ושניהם סוטים באותה מידה. ';
+    if (st === 'idle' && (load || batt)) say.innerHTML = same + 'לחצו ״אספו דוגמאות״ ואז ״אמנו את הרשת״, וההבדל יופיע.';
+    else if (st === 'idle') say.innerHTML = 'בשני הרחפנים אותו PID. לאחד מקדמים קבועים שכוונו לסוללה מלאה ובלי מטען. לשני הרשת תבחר מקדמים, אחרי שנאמן אותה.';
     else if (st === 'data') say.innerHTML = '<b>אוספים דוגמאות:</b> לכל שילוב של מטען וסוללה הסימולטור מנסה מקדמים שונים ושומר את הטובים. זו העבודה שמהנדס עושה ביד, מצב אחרי מצב.';
-    else if (st === 'ready') say.innerHTML = `<b>${GS_N} דוגמאות מוכנות.</b> עכשיו רשת של 8 נוירונים ו-51 משקלים תלמד לחקות אותן.`;
+    else if (st === 'ready') say.innerHTML = `<b>${GS_N} דוגמאות מוכנות.</b> עכשיו רשת של 8 נוירונים ו-51 משקלים תלמד לחקות אותן.` + (load || batt ? ' עד אז שני הרחפנים עדיין זהים.' : '');
     else if (st === 'train') say.innerHTML = '<b>אימון:</b> בכל סבב הרשת מנחשת את כל התשובות, מחשבת כמה טעתה, ומזיזה כל משקל קצת בכיוון שמקטין את הטעות. זו ירידה בגרדיאנט, אותו עיקרון שמאמן גם רשתות ענק.';
-    else if (!load && !batt) say.innerHTML = '<b>הרשת מאומנת.</b> לחצו ״מטען בצד״ או ״סוללה חלשה״ ושימו לב למקדמים שהיא בוחרת.';
-    else say.innerHTML = '<b>מצב שלא היה בדוגמאות:</b> הצלב נופל בין הריבועים במפה, והרשת משלימה את מה שביניהם. הרחפן הקבוע נשאר עם המקדמים של הבוקר.';
+    else if (!load && !batt) say.innerHTML = '<b>הרשת מאומנת.</b> בלי הפרעה שניהם טובים, כי המקדמים הקבועים כוונו בדיוק למצב הזה. עכשיו לחצו ״מטען בצד״.';
+    else if (load && !batt) say.innerHTML = '<b>מטען בצד:</b> המקדמים הקבועים כוונו בלי מטען, אין להם איבר I, ולכן הרחפן הקבוע נשאר נטוי ולא מגיע ליעד. הרשת מזהה את המצב, מעלה את <span class="num">Ki</span> וסוגרת את הפער. עכשיו נסו גם ״סוללה חלשה״.';
+    else if (!load && batt) say.innerHTML = '<b>סוללה חלשה:</b> המנועים נותנים רק 55% מהכוח. הרשת מעלה את <span class="num">Kp</span> ו-<span class="num">Kd</span> כדי לפצות. לבד זה עוד הבדל קטן, אבל נסו להוסיף ״מטען בצד״.';
+    else say.innerHTML = '<b>מטען וסוללה חלשה יחד:</b> מצב שלא היה בדיוק בדוגמאות. הקבוע, שכוונן לבוקר עם סוללה מלאה, סוטה בכמה מעלות. הרשת משלימה בין הדוגמאות ומחזיקה אותו קרוב ליעד.';
   },
   resize(){ this.f = fit($('#gsMap')); },
   paint(){
@@ -336,7 +340,7 @@ const gs = { state: 'idle', X: [], Y: [], T: [], i: 0, acc: 0, net: gsNet(), ep:
         rr(x + 1.5, y + 1.5, cs - 3, cs - 3, 3); c.fillStyle = n < this.i ? fill(this.T[n][k]) : 'rgba(120,120,128,.12)'; c.fill();
         if (pred){ c.beginPath(); c.arc(x + cs / 2, y + cs / 2, cs * .24, 0, 7); c.fillStyle = '#000'; c.fill(); c.beginPath(); c.arc(x + cs / 2, y + cs / 2, cs * .24, 0, 7); c.fillStyle = fill(pred[n][k]); c.fill(); }
       }
-      const cx = px + (ad.par.d / 60 + .5) * cs, cy = top + ((1 - ad.par.eff) / .1 + .5) * cs; c.strokeStyle = LABEL; c.lineWidth = 1.5;
+      const cx = px + (ad.par.d / 80 + .5) * cs, cy = top + ((1 - ad.par.eff) / .1 + .5) * cs; c.strokeStyle = LABEL; c.lineWidth = 1.5;
       seg2(c, cx - cs * .5, cy, cx - cs * .2, cy); seg2(c, cx + cs * .2, cy, cx + cs * .5, cy); seg2(c, cx, cy - cs * .5, cx, cy - cs * .2); seg2(c, cx, cy + cs * .2, cx, cy + cs * .5);
     });
   },

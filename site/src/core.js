@@ -125,7 +125,7 @@ function popEnd(p){ // score everyone, keep the better quarter of directions, mo
 }
 if (typeof module !== 'undefined') Object.assign(module.exports, { makePop, popReset, popStep, popEnd, EP_N });
 // ---- gain scheduling: find the best PID gains for each condition, then teach a small network the map (supervised, gradient descent) ----
-const GS_MAX = { kp: 8, ki: 14, kd: 1.5 }, GS_D = [0, 60, 120, 180, 240, 300], GS_E = [1, .9, .8, .7, .6, .5];
+const GS_MAX = { kp: 8, ki: 14, kd: 1.5 }, GS_D = [0, 80, 160, 240, 320, 400], GS_E = [1, .9, .8, .7, .6, .5];
 function gsCost(g, d, eff){ // a 15° step, then a gust, under this load and battery. Tracking error plus motor effort.
   const par = { ...BASE, d, eff }, s = makePlant(0), c = makePID(), N = Math.round(3 / DT); let J = 0;
   for (let k = 0; k < N; k++){ const sp = k < 30 ? 0 : 15, o = pidStep(c, g, sp, s.th, DT); stepPlant(s, o.u, par, DT, k === 480 ? 120 : 0); const e = sp - s.th; J += e * e / 225 + 2 * (o.u / 100) ** 2; if (s.hit) return 50; }
@@ -161,6 +161,6 @@ function gsEpoch(n, X, Y, lr = .02){ // one pass over the examples: guess, compa
   n.P.forEach((a, i) => { for (let j = 0; j < a.length; j++){ n.m[i][j] = .9 * n.m[i][j] + .1 * g[i][j]; n.v[i][j] = .999 * n.v[i][j] + .001 * g[i][j] ** 2; a[j] -= lr * (n.m[i][j] / (1 - .9 ** n.t)) / (Math.sqrt(n.v[i][j] / (1 - .999 ** n.t)) + 1e-8); } });
   n.loss = L / X.length; return n.loss;
 }
-const gsIn = (d, eff) => [d / 300, (1 - eff) / .5];
+const gsIn = (d, eff) => [d / 400, (1 - eff) / .5];
 const gsOut = y => ({ kp: clamp(y[0], 0, 1.2) * GS_MAX.kp, ki: clamp(y[1], 0, 1.2) * GS_MAX.ki, kd: clamp(y[2], 0, 1.2) * GS_MAX.kd });
 if (typeof module !== 'undefined') Object.assign(module.exports, { GS_MAX, GS_D, GS_E, gsCost, gsBest, gsNet, gsFwd, gsEpoch, gsIn, gsOut });
