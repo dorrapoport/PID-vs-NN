@@ -35,19 +35,20 @@ button,a,[role=slider]{-webkit-tap-highlight-color:transparent;touch-action:mani
 .bk{position:fixed;inset:0 0 auto 0;height:100vh;height:100lvh;pointer-events:none;background:#000}
 .bk i{position:absolute;inset:0}
 .bk .b0{background:radial-gradient(52% 50% at 32% 44%,rgba(72,80,108,.5) 0%,rgba(30,33,46,.3) 44%,transparent 78%),radial-gradient(46% 40% at 86% 106%,rgba(255,140,80,.1),transparent 70%),radial-gradient(60% 50% at 0% 0%,rgba(70,100,180,.1),transparent 70%)}
-.bk .b1{opacity:0;transition:opacity 1200ms ease;background:radial-gradient(56% 54% at 34% 48%,rgba(26,104,70,.44) 0%,rgba(12,46,34,.28) 46%,transparent 80%),radial-gradient(46% 40% at 86% 106%,rgba(52,194,107,.1),transparent 70%)}
+.bk .b1{opacity:0;transition:opacity 700ms ease;background:radial-gradient(56% 54% at 34% 48%,rgba(26,104,70,.44) 0%,rgba(12,46,34,.28) 46%,transparent 80%),radial-gradient(46% 40% at 86% 106%,rgba(52,194,107,.1),transparent 70%)}
 [data-th="ai"] .bk .b1{opacity:1}
 .vig{position:fixed;inset:0;pointer-events:none;background:radial-gradient(118% 96% at 50% 46%,transparent 54%,rgba(0,0,0,.5) 100%)}
 /* stations without a drone get a soft coloured light of their own, above the dimmed stage and behind the text */
 .amb{position:fixed;inset:0;pointer-events:none}
-.amb i{position:absolute;inset:0;opacity:0;transition:opacity 1200ms ease}
+.amb i{position:absolute;inset:0;opacity:0;transition:opacity 700ms ease}
 .amb .m-nn{background:radial-gradient(44% 54% at 26% 56%,rgba(52,194,107,.17),transparent 72%),radial-gradient(38% 42% at 98% 2%,rgba(52,194,107,.07),transparent 72%)}
 .amb .m-hw{background:radial-gradient(40% 48% at 76% 50%,rgba(150,120,255,.2),transparent 72%),radial-gradient(42% 48% at 16% 62%,rgba(84,196,214,.09),transparent 72%)}
 .amb .m-duo{background:radial-gradient(50% 62% at 100% 22%,rgba(120,150,230,.17),transparent 72%),radial-gradient(50% 62% at 0% 80%,rgba(52,194,107,.14),transparent 72%)}
 [data-amb="nn"] .m-nn,[data-amb="hw"] .m-hw,[data-amb="duo"] .m-duo{opacity:1}
 /* a trace of film grain over everything: it keeps the dark gradients from banding on a projector */
 .grain{position:fixed;inset:0;z-index:2;pointer-events:none;background-size:180px 180px}
-@media (prefers-reduced-motion:no-preference){#app{animation:intro 900ms ease backwards}}
+/* on load only the 3D fades in: the text and the controls are readable from the first frame */
+@media (prefers-reduced-motion:no-preference){#stage{animation:intro 700ms var(--ease-out) backwards}}
 @keyframes intro{from{opacity:0}}
 #stage.cut{transition:opacity 220ms ease}
 .shade{position:fixed;inset:0;pointer-events:none;background:var(--bg);opacity:0}
@@ -73,7 +74,7 @@ button,a,[role=slider]{-webkit-tap-highlight-color:transparent;touch-action:mani
 .seg>button,.seg-hi>span{flex:1 1 auto;min-height:2.25rem;padding:0 1rem;border-radius:999px;display:grid;place-items:center;font-weight:600;font-size:.95rem;white-space:nowrap}
 .seg>button{border:0;background:none;color:var(--label-2);cursor:pointer;transition:transform 160ms var(--ease-out),color 200ms ease}
 .seg>button:active{transform:scale(.97)}
-.seg-hi{position:absolute;inset:0;display:flex;gap:.125rem;padding:.25rem;pointer-events:none;background:var(--paper);color:#000;border-radius:999px;clip-path:inset(0 100% 0 0 round 999px);transition:clip-path 320ms var(--ease-drawer)}
+.seg-hi{position:absolute;inset:0;display:flex;gap:.125rem;padding:.25rem;pointer-events:none;background:var(--paper);color:#000;border-radius:999px;clip-path:inset(0 100% 0 0 round 999px);transition:clip-path 240ms var(--ease-drawer)}
 @media (hover:hover) and (pointer:fine){.seg>button:hover{color:var(--label)}}
 @media (pointer:coarse){.seg>button,.seg-hi>span{min-height:2.75rem}}
 @media (prefers-reduced-motion:reduce){.seg-hi{transition:none}}
@@ -93,7 +94,7 @@ button,a,[role=slider]{-webkit-tap-highlight-color:transparent;touch-action:mani
 .nav>button{position:relative}
 .tools{display:flex;align-items:center;gap:.1rem;padding:.25rem;border-radius:999px}
 .tool{min-height:2.25rem;min-width:2.25rem;padding:0 .55rem;border-radius:999px;border:0;background:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:.45rem;font-weight:600;font-size:.95rem;transition:transform 160ms var(--ease-out),background-color 200ms ease}
-.tool:active{transform:scale(.94)}
+.tool:active{transform:scale(.96)}
 .tool svg{width:1.15rem;height:1.15rem;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
 .tool[aria-pressed="true"]{background:var(--label);color:#000}
 .tool.clock.over .num{color:var(--warn)}
@@ -122,7 +123,7 @@ h1,h2{padding-block:.06em .18em;margin-block:-.06em -.18em}
 @media (forced-colors:active){h1,h2,.stat b,.takes b{background:none;-webkit-text-fill-color:currentColor}}
 .live{position:relative;width:.5rem;height:.5rem;border-radius:50%;background:var(--label);flex:none}
 .live::after{content:"";position:absolute;inset:0;border-radius:50%;background:inherit;opacity:0}
-@media (prefers-reduced-motion:no-preference){.live::after{animation:ping 2.2s var(--ease-out) infinite}}
+@media (prefers-reduced-motion:no-preference){.live::after{animation:ping 2.2s var(--ease-out) 3}}
 @keyframes ping{0%{transform:scale(1);opacity:.65}80%,100%{transform:scale(3.4);opacity:0}}
 .lead{font-size:1.3rem;line-height:1.4;color:var(--label-2);max-width:30em;text-wrap:pretty}
 .say{font-size:1.2rem;line-height:1.4;color:var(--label-2);min-height:2.8em;text-wrap:pretty}
@@ -131,14 +132,16 @@ h1,h2{padding-block:.06em .18em;margin-block:-.06em -.18em}
 .hint{font-size:.95rem;color:var(--label-2)}
 /* a station's text settles in once, when the station becomes the current one */
 @media (prefers-reduced-motion:no-preference){
-  .anim .st .col>*{opacity:0;transform:translateY(12px);filter:blur(4px);transition:opacity 240ms ease,transform 240ms ease,filter 240ms ease}
-  .anim .st.on .col>*{opacity:1;transform:none;filter:none;transition:opacity 560ms var(--ease-out),transform 560ms var(--ease-out),filter 560ms var(--ease-out)}
+  .anim .st .col>*{opacity:0;transform:translateY(12px);transition:opacity 240ms ease,transform 240ms ease}
+  .anim .st .col>:is(h1,h2,p){filter:blur(4px);transition:opacity 240ms ease,transform 240ms ease,filter 240ms ease}
+  .anim .st.on .col>*{opacity:1;transform:none;transition:opacity 400ms var(--ease-out),transform 400ms var(--ease-out)}
+  .anim .st.on .col>:is(h1,h2,p){filter:none;transition:opacity 400ms var(--ease-out),transform 400ms var(--ease-out),filter 400ms var(--ease-out)}
   .anim .st.on .col>:nth-child(2){transition-delay:50ms}.anim .st.on .col>:nth-child(3){transition-delay:100ms}.anim .st.on .col>:nth-child(4){transition-delay:150ms}
   .anim .st.on .col>:nth-child(5){transition-delay:200ms}.anim .st.on .col>:nth-child(n+6){transition-delay:250ms}
 }
 @media (prefers-reduced-motion:reduce){.anim .st .col>*{opacity:0;transition:opacity 200ms ease}.anim .st.on .col>*{opacity:1}}
 /* phones reveal each element as it reaches the screen: a short rise, no blur */
-.anim.reveal .st .col>*,.anim.reveal .st.on .col>*{opacity:0;transform:translateY(14px);filter:none;transition:opacity 520ms var(--ease-out),transform 520ms var(--ease-out);transition-delay:0ms}
+.anim.reveal .st .col>*,.anim.reveal .st.on .col>*{opacity:0;transform:translateY(8px);filter:none;transition:opacity 320ms var(--ease-out),transform 320ms var(--ease-out);transition-delay:0ms}
 .anim.reveal .st .col>.seen{opacity:1;transform:none}
 @media (prefers-reduced-motion:reduce){.anim.reveal .st .col>*,.anim.reveal .st.on .col>*{transform:none;transition:opacity 200ms ease}}
 
@@ -227,17 +230,16 @@ canvas.plot.short{height:8.4rem}
 .chips canvas{width:100%;height:clamp(16rem,46vh,26rem);display:block;direction:ltr}
 .hwr{display:grid;gap:1.2rem;min-width:0}
 .hwr .stats{gap:1rem 2.2rem}
-.hwr .stat b{font-size:clamp(2rem,3vw,3rem);transition:color 200ms ease}
+.hwr .stat b{font-size:clamp(2rem,3vw,3rem)}
 .tbars{display:grid;gap:.45rem}
 .tbars div{display:grid;grid-template-columns:9.5rem minmax(0,1fr) 3.6rem;gap:.8rem;align-items:center;font-size:.95rem;color:var(--label-2);transition:color 200ms ease}
-.tbars i{display:block;height:.75rem;border-radius:999px;background:var(--fill-2);transform-origin:right center;transition:transform 420ms var(--ease-out),background-color 200ms ease}
+.tbars i{display:block;height:.75rem;border-radius:999px;background:var(--fill-2);transform-origin:right center;transition:background-color 200ms ease}
 .tbars b{font-variant-numeric:tabular-nums;direction:ltr;text-align:left;font-weight:600}
 .tbars div.on{color:var(--label)}
 .tbars div.on i{background:var(--label)}
 
 /* ---------- station 7: trade-offs ---------- */
 .view{display:grid;gap:1.2rem;min-width:0}
-@media (prefers-reduced-motion:no-preference){.view{transition:opacity 260ms var(--ease-out),filter 260ms var(--ease-out),transform 260ms var(--ease-out)}@starting-style{.view{opacity:0;filter:blur(4px);transform:translateY(8px)}}}
 .scroll-x{overflow-x:auto}
 table{border-collapse:collapse;width:100%;min-width:40rem;table-layout:fixed}
 th,td{text-align:start;padding:1.1rem 1rem 1.1rem 0;border-top:1px solid var(--sep);vertical-align:top}
@@ -309,6 +311,7 @@ tr>:nth-child(2){--k:#f5f5f7}tr>:nth-child(3){--k:#9be0b7}tr>:nth-child(4){--k:v
 .pop{position:absolute;z-index:16;padding:1rem 1.1rem;border-radius:1.5rem;display:grid;gap:.8rem;pointer-events:auto;
   opacity:0;visibility:hidden;transform:scale(.96);transition:opacity 140ms ease,transform 140ms ease,visibility 0s linear 140ms}
 .pop.on{opacity:1;visibility:visible;transform:none;transition:opacity 220ms var(--ease-out),transform 220ms var(--ease-out),visibility 0s}
+@media (prefers-reduced-motion:reduce){.pop,.pop.on{transform:none}}
 #tune{inset:auto auto calc(100% + .6rem) 50%;width:min(27rem,calc(100vw - 32px));margin-left:calc(min(27rem,100vw - 32px) / -2);transform-origin:50% 100%}
 .gain{display:grid;grid-template-columns:auto minmax(0,7.5rem) minmax(0,1fr) 3rem;gap:.7rem;align-items:center}
 .gain label{display:grid;line-height:1.2}
@@ -406,7 +409,7 @@ input[type=range]::-moz-range-thumb{width:1.4rem;height:1.4rem;border:0;border-r
 .btn.nudge{position:relative}
 .btn.nudge::after{content:"";position:absolute;inset:-2px;border-radius:inherit;border:2px solid rgba(255,255,255,.8);pointer-events:none;opacity:0}
 @media (prefers-reduced-motion:no-preference){.btn.nudge::after{animation:nudge 1.6s var(--ease-out) infinite}}
-@keyframes nudge{0%{transform:scale(1);opacity:.85}80%,100%{transform:scale(1.1,1.4);opacity:0}}
+@keyframes nudge{0%{transform:scale(1);opacity:.85}80%,100%{transform:scale(1.08);opacity:0}}
 .btn.nudge{outline:2px solid rgba(255,255,255,.85);outline-offset:2px}
 /* keyboard: key caps on buttons, the shortcut list, a clear ring on the control in focus */
 .dock button:focus-visible,#tune :focus-visible,#quiz button:focus-visible{outline:2.5px solid var(--label);outline-offset:3px}

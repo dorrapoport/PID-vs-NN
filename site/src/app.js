@@ -12,6 +12,7 @@ const big = n => Math.round(n).toLocaleString('en-US');
 const LABEL = '#f5f5f7', L2 = 'rgba(235,235,245,.7)', L3 = 'rgba(235,235,245,.44)', CP = '#2389e2', CI = '#b38f18', CD = '#d44996', CAI = '#34c26b', WARN = '#ff9f0a';
 const UI = 'system-ui, -apple-system, "Heebo", "Segoe UI", Arial, sans-serif', MONO = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
 let REM = 16;
+let viaKey = false; // true while a key press is being handled: what a key opens appears at once, the transitions are for the pointer
 
 /* ================= stations ================= */
 // shot: [azimuth°, elevation°, distance, x offset, y offset, explode, stand, twin, dim, spin, swarm]
@@ -257,8 +258,11 @@ toggle('#spB', on => { lab.spNext = null; lab.sp = on ? 15 : 0; });
 toggle('#loadB', on => setLoad(on));
 toggle('#noiseB', on => { lab.noise = on; if (on) $('#labSay').innerHTML = '<b>רעש בחיישן:</b> הביטו בחץ הוורוד. נגזרת מגדילה כל קפיצה קטנה במדידה, והמנועים רועדים. לכן מסננים את D, או מוותרים עליו.'; });
 const tune = $('#tune'), tuneB = $('#tuneB');
-function setTune(on){ if (on){ const b = tuneB.getBoundingClientRect(), p = tune.getBoundingClientRect(); tune.style.transformOrigin = `${fmt(b.left + b.width / 2 - p.left)}px 100%`; } tune.classList.toggle('on', on); tuneB.setAttribute('aria-expanded', on); }
-tuneB.addEventListener('click', () => setTune(!tune.classList.contains('on')));
+const byKey = e => viaKey || !!(e && e.detail === 0);
+function popSet(el, on, e){ const now = byKey(e); if (now) el.style.transition = 'none'; el.classList.toggle('on', on); if (now){ void el.offsetWidth; el.style.transition = ''; } }
+function popFrom(el, btn){ const b = btn.getBoundingClientRect(), p = el.getBoundingClientRect(); el.style.transformOrigin = `${fmt(b.left + b.width / 2 - p.left)}px ${fmt(b.top + b.height / 2 - p.top)}px`; }
+function setTune(on, e){ if (on){ const b = tuneB.getBoundingClientRect(), p = tune.getBoundingClientRect(); tune.style.transformOrigin = `${fmt(b.left + b.width / 2 - p.left)}px 100%`; } popSet(tune, on, e); tuneB.setAttribute('aria-expanded', on); }
+tuneB.addEventListener('click', e => setTune(!tune.classList.contains('on'), e));
 addEventListener('pointerdown', e => { if (tune.classList.contains('on') && !tune.contains(e.target) && !tuneB.contains(e.target)) setTune(false); });
 
 /* --- station 4: fixed gains vs a single neuron that retunes them in flight --- */
@@ -941,8 +945,11 @@ function makeStage(){
     } catch (e) { return none; }
   })();
   // on a desk the camera leans a little toward the pointer, so the scene feels like an object and not a picture
-  let ptx = 0, pty = 0, plx = 0, ply = 0, aiK = 0;
-  if (!TOUCH && !RM) addEventListener('pointermove', e => { ptx = e.clientX / innerWidth * 2 - 1; pty = e.clientY / innerHeight * 2 - 1; }, { passive: true });
+  // While a button is held the camera stays where it is, so nothing moves under a drag.
+  let ptx = 0, pty = 0, plx = 0, ply = 0, aiK = 0, held = false;
+  if (!TOUCH && !RM){ const o = { passive: true }, up = () => { held = false; };
+    addEventListener('pointermove', e => { if (held) return; ptx = e.clientX / innerWidth * 2 - 1; pty = e.clientY / innerHeight * 2 - 1; }, o);
+    addEventListener('pointerdown', () => { held = true; }, o); addEventListener('pointerup', up, o); addEventListener('pointercancel', up, o); }
   let W = 1, H = 1, narrow = false, tt = 0, yaw = 0, SH = ST.map(s => s.shot);
   const NS = 11, cur = ST[0].shot.slice(); cur[2] = 15; cur[0] = 62; // start far away and glide in
   const tgt = cur.slice(), v3 = new T.Vector3(), rt = new T.Vector3(), up = new T.Vector3(), ctr = new T.Vector3(), shade = $('#shade');
@@ -1148,7 +1155,7 @@ $('#clock').addEventListener('click', () => { clock.on = !clock.on; clockPaint()
 $('#clockR').addEventListener('click', () => { clock.t = 0; clock.on = false; clockPaint(); });
 $('#startB').addEventListener('click', e => { clock.t = 0; clock.on = true; clockPaint(); go(1, e.detail === 0); });
 const notes = $('#notes');
-function toggleNotes(){ const on = !notes.classList.contains('on'); notes.classList.toggle('on', on); $('#notesB').setAttribute('aria-pressed', on); }
+function toggleNotes(e){ const on = !notes.classList.contains('on'); if (on) popFrom(notes, $('#notesB')); popSet(notes, on, e); $('#notesB').setAttribute('aria-pressed', on); }
 $('#notesB').addEventListener('click', toggleNotes);
 function togglePause(){ paused = !paused; const b = $('#pauseB'); b.setAttribute('aria-pressed', paused); b.setAttribute('aria-label', paused ? 'המשיכו את ההדגמות' : 'השהו את ההדגמות'); }
 $('#pauseB').addEventListener('click', togglePause);
@@ -1188,8 +1195,8 @@ function keysPaint(){
   $('#keysSt').innerHTML = h || row('–', 'אין כאן פקדים. ↓ לתחנה הבאה');
   $('#keysStT').textContent = `בתחנה ${active}: ${ST[active].name}`;
 }
-function toggleKeys(on = !keysPop.classList.contains('on')){ if (on) keysPaint(); keysPop.classList.toggle('on', on); $('#keysB').setAttribute('aria-pressed', on); }
-$('#keysB').addEventListener('click', () => toggleKeys());
+function toggleKeys(on = !keysPop.classList.contains('on'), e){ if (on){ keysPaint(); popFrom(keysPop, $('#keysB')); } popSet(keysPop, on, e); $('#keysB').setAttribute('aria-pressed', on); }
+$('#keysB').addEventListener('click', e => toggleKeys(undefined, e));
 const tiltKey = (type, key) => $('#pad').dispatchEvent(new KeyboardEvent(type, { key }));
 /* focus moves through the controls of the current station in reading order: the bottom bar, and in station 7 the vote.
    The bar's DOM order runs right to left on screen, so ← is "next" and → is "previous". */
@@ -1215,7 +1222,7 @@ function tuneKey(e){
   return false;
 }
 let navTo = 0, navAt = 0;
-addEventListener('keydown', e => {
+const onKey = e => {
   if (e.metaKey || e.ctrlKey || e.altKey) return; const t = e.target, k = e.key, c = e.code; if (t && (t.tagName === 'TEXTAREA' || t.isContentEditable || (t.tagName === 'INPUT' && t.type !== 'range'))) return;
   const m = KEYMAP[active] || {};
   if (t && t.closest && t.closest('[role="slider"]') && (k === 'ArrowLeft' || k === 'ArrowRight')) return; // the tilt handle reads these itself
@@ -1256,7 +1263,8 @@ addEventListener('keydown', e => {
   else if (c === 'KeyK'){ if (e.shiftKey) $('#clockR').click(); else $('#clock').click(); }
   else if (k === '?' || c === 'KeyH' || c === 'Slash'){ e.preventDefault(); toggleKeys(); }
   else if (k === 'Escape'){ setTune(false); toggleKeys(false); }
-});
+};
+addEventListener('keydown', e => { viaKey = true; try { onKey(e); } finally { viaKey = false; } });
 addEventListener('keyup', e => { if (active === 1 && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) tiltKey('keyup', e.key); });
 
 /* ================= loop ================= */
