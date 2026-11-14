@@ -1516,9 +1516,21 @@ const NN_SAY = [
   '<b>אימון:</b> בהתחלה המשקלים אקראיים והתשובות גרועות. משווים לתשובה הנכונה, ומזיזים כל משקל קצת בכיוון שמקטין את הטעות. אחרי מאות סבבים הרשת עונה טוב, בלי שמישהו כתב לה את הנוסחה.',
 ];
 const NN_L = [2, 5, 5, 1];
-const nnW = (() => { const r = mulberry32(21), W = []; for (let l = 0; l < NN_L.length - 1; l++){ const m = []; for (let j = 0; j < NN_L[l + 1]; j++){ const row = []; for (let i = 0; i < NN_L[l]; i++) row.push(gauss(r) * .9); m.push(row); } W.push(m); } return W; })();
-const nnW0 = nnW.map(m => m.map(row => row.map(() => 0)).map((row, j) => row)); // filled below with the random starting weights
-{ const r = mulberry32(77); nnW.forEach((m, l) => m.forEach((row, j) => row.forEach((_, i) => { nnW0[l][j][i] = gauss(r) * .9; }))); }
+/* the training view is a real training run, not an imitation of one. The network starts from random weights and learns, by gradient
+   descent, to give the answers of one rule (nnRight) on 24 examples: the same angles and rates the picture feeds it. All NN_T rounds
+   are computed once, here, and the view plays them back. nnRun.W[n] are the weights after n rounds, and nnRun.err[n] is the error
+   after n rounds, averaged over all the examples, so it falls round after round and does not swing with the input of the moment */
+const NN_T = 400, nnRight = x => Math.tanh(.9 * x[0] + .35 * x[1]);
+const nnRun = (() => { const r = mulberry32(77), W = NN_L.slice(1).map((nj, l) => Array.from({ length: nj }, () => Array.from({ length: NN_L[l] }, () => gauss(r) * .9)));
+  const X = Array.from({ length: 24 }, (_, k) => [Math.sin(k * Math.PI / 12), Math.cos(k * Math.PI / 12)]), out = { W: [], err: [] }, H = NN_L[1];
+  for (let n = 0; n <= NN_T; n++){ const G = W.map(m => m.map(row => row.map(() => 0))); let e = 0;
+    for (const x of X){ const a = nnFwd(W, x), y = a[3][0], d3 = (y - nnRight(x)) * (1 - y * y) * .8; e += Math.abs(y - nnRight(x));
+      const d2 = a[2].map((v, i) => W[2][0][i] * d3 * (1 - v * v)), d1 = a[1].map((v, j) => { let q = 0; for (let i = 0; i < H; i++) q += W[1][i][j] * d2[i]; return q * (1 - v * v); });
+      for (let i = 0; i < H; i++){ G[2][0][i] += d3 * a[2][i]; for (let j = 0; j < H; j++) G[1][i][j] += d2[i] * a[1][j]; for (let k = 0; k < 2; k++) G[0][i][k] += d1[i] * x[k]; } }
+    out.W.push(W.map(m => m.map(row => row.slice()))); out.err.push(e / X.length);
+    W.forEach((m, l) => m.forEach((row, j) => row.forEach((_, i) => { row[i] -= .05 * G[l][j][i] / X.length; }))); } // one step against the gradient
+  return out; })();
+const nnW = nnRun.W[NN_T]; // the trained network, shown in the "network" view
 function nnFwd(W, x){ const acts = [x]; let a = x; W.forEach((m, l) => { a = m.map(row => { let s = 0; row.forEach((w, i) => { s += w * a[i]; }); return l === W.length - 1 ? Math.tanh(s * .8) : Math.tanh(s); }); acts.push(a); }); return acts; }
 const nn = { v: 0, t: 0, f: null, ep: 0,
   set(i){ this.v = i; this.ep = 0; $('#nnSay').innerHTML = NN_SAY[i]; $$('#nnSteps li').forEach((li, j) => { li.classList.toggle('on', j === i); li.classList.toggle('done', j < i); }); },
@@ -1550,10 +1562,9 @@ const nn = { v: 0, t: 0, f: null, ep: 0,
       return;
     }
     // a network: 2 inputs, two hidden layers of 5, one output. Line width is the size of each weight
-    const train = this.v === 2; if (train && !paused) this.ep += dt * 60; const prog = train ? 1 - Math.exp(-this.ep / 160) : 1, cyc = train && this.ep > 900;
-    if (cyc) this.ep = 0;
-    const Wt = nnW.map((m, l) => m.map((row, j) => row.map((w, i) => { const w0 = nnW0[l][j][i]; return w0 + (w - w0) * prog + (train ? Math.sin(t * 7 + i + j * 2 + l) * .08 * (1 - prog) : 0); })));
-    const x = [ang / 14, rate / 40], acts = nnFwd(Wt, x), right = Math.tanh(.9 * x[0] + .35 * x[1]);
+    // training runs once, 50 rounds a second, and then holds the trained network. Choosing "training" again starts it over
+    const train = this.v === 2; if (train && !paused) this.ep = Math.min(NN_T, this.ep + dt * 50); const round = Math.floor(this.ep);
+    const Wt = train ? nnRun.W[round] : nnW, x = [ang / 14, rate / 40], acts = nnFwd(Wt, x);
     const L = NN_L.length, padX = Math.max(W * .13, fs * 4.6), top = train ? Math.max(H * .14, W < 560 ? fs * 4.2 : 0) : H * .08, bot = H * .92, X = l => padX + (W - 2 * padX) * l / (L - 1), Y = (l, j) => { const n = NN_L[l], gap = Math.min((bot - top) / Math.max(n, 2), fs * 3.6); return (top + bot) / 2 + (j - (n - 1) / 2) * gap; };
     const u = (t * .7) % 1, hop = Math.floor(u * (L - 1)), uu = u * (L - 1) - hop;
     for (let l = 0; l < L - 1; l++) for (let j = 0; j < NN_L[l + 1]; j++) for (let i = 0; i < NN_L[l]; i++){
@@ -1569,11 +1580,11 @@ const nn = { v: 0, t: 0, f: null, ep: 0,
     text(c, 'זווית', X(0) - fs * 1.6, Y(0, 0), `600 ${fs}px ${UI}`, L2, 'right'); text(c, 'קצב', X(0) - fs * 1.6, Y(0, 1), `600 ${fs}px ${UI}`, L2, 'right');
     text(c, 'פקודה', X(L - 1) + fs * 1.6, Y(L - 1, 0), `600 ${fs}px ${UI}`, CAI, 'left');
     text(c, 'כניסות', X(0), bot + fs * .2, `500 ${fs * .85}px ${UI}`, L3); text(c, 'שכבות נסתרות', (X(1) + X(2)) / 2, bot + fs * .2, `500 ${fs * .85}px ${UI}`, L3); text(c, 'יציאה', X(L - 1), bot + fs * .2, `500 ${fs * .85}px ${UI}`, L3);
-    if (train){ // how far the network's answer is from the right one, shrinking round after round
-      const err = Math.abs(acts[L - 1][0] - right), shown = Math.max(err, (1 - prog) * .6);
-      text(c, `סבב אימון ${iso(Math.round(this.ep))}`, W - padX, fs * .9, `600 ${fs}px ${UI}`, LABEL, 'right');
+    if (train){ // how far the network's answers are from the right ones, averaged over all the examples. The bar is full at the first round
+      const err = nnRun.err[round], shown = err / nnRun.err[0];
+      text(c, `סבב אימון ${iso(round)}`, W - padX, fs * .9, `600 ${fs}px ${UI}`, LABEL, 'right');
       const two = W < 560, bx = padX, bw = two ? W - 2 * padX - fs * 5.5 : W * .34, by = two ? fs * 2.1 : fs * .55; c.fillStyle = 'rgba(120,120,128,.25)'; c.fillRect(bx, by, bw, fs * .7); c.fillStyle = WARN; c.fillRect(bx + bw * (1 - Math.min(1, shown)), by, bw * Math.min(1, shown), fs * .7);
-      text(c, `טעות ${iso(Math.round(Math.min(1, shown) * 100) + '%')}`, bx + bw + fs * .6, by + fs * .35, `600 ${fs * .9}px ${UI}`, L2, 'left');
+      text(c, `${two ? 'טעות' : 'טעות ממוצעת'} ${iso(Math.round(err * 100) + '%')}`, bx + bw + fs * .6, by + fs * .35, `600 ${fs * .9}px ${UI}`, L2, 'left');
     }
   },
 };
