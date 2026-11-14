@@ -121,6 +121,12 @@ h3{font-size:1.0625rem;font-weight:600}
 h1,h2,.stat b,.takes b{background:linear-gradient(180deg,#fff 22%,#aeb3c4 120%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
 h1,h2{padding-block:.06em .18em;margin-block:-.06em -.18em}
 @media (forced-colors:active){h1,h2,.stat b,.takes b{background:none;-webkit-text-fill-color:currentColor}}
+/* a headline is cut into words. Each word sits in a mask of its own (.w) and carries the lit gradient itself (.wi), so it can
+   rise into place without the gradient breaking. The mask is a clip-path, which leaves the baseline of the line alone */
+.w{display:inline-block;clip-path:inset(-.12em -.3em -.24em -.3em)}
+.wi{display:inline-block;padding-block:.06em .18em;margin-block:-.06em -.18em;background:linear-gradient(180deg,#fff 22%,#aeb3c4 120%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+:is(h1,h2).split{background:none}
+@media (forced-colors:active){.wi{background:none;-webkit-text-fill-color:currentColor}}
 .live{position:relative;width:.5rem;height:.5rem;border-radius:50%;background:var(--label);flex:none}
 .live::after{content:"";position:absolute;inset:0;border-radius:50%;background:inherit;opacity:0}
 @media (prefers-reduced-motion:no-preference){.live::after{animation:ping 2.2s var(--ease-out) 3}}
@@ -144,6 +150,23 @@ h1,h2{padding-block:.06em .18em;margin-block:-.06em -.18em}
 .anim.reveal .st .col>*,.anim.reveal .st.on .col>*{opacity:0;transform:translateY(8px);filter:none;transition:opacity 320ms var(--ease-out),transform 320ms var(--ease-out);transition-delay:0ms}
 .anim.reveal .st .col>.seen{opacity:1;transform:none}
 @media (prefers-reduced-motion:reduce){.anim.reveal .st .col>*,.anim.reveal .st.on .col>*{transform:none;transition:opacity 200ms ease}}
+/* the headline of a station does not fade in as a block: its words rise one after the other, 70ms apart, each out of its own mask.
+   Leaving is quick and together. On a phone the same thing happens when the headline reaches the screen */
+@media (prefers-reduced-motion:no-preference){
+  .anim .st .col>:is(h1,h2).split{filter:none;transform:none}
+  .anim .st.on .col>:is(h1,h2).split{transition:opacity 140ms linear;transition-delay:0ms}
+  .anim .st .wi{transform:translateY(125%);transition:transform 240ms ease}
+  .anim .st.on .wi{transform:none;transition:transform 900ms var(--ease-out);transition-delay:calc(40ms + var(--i,0)*70ms)}
+  .anim.reveal .st .wi,.anim.reveal .st.on .wi{transform:translateY(125%);transition:none}
+  .anim.reveal .st .seen .wi{transform:none;transition:transform 750ms var(--ease-out);transition-delay:calc(var(--i,0)*55ms)}
+  /* the opening, once, on load: the headline first, word by word, then the line under it and the button. Pure CSS, so it
+     starts with the first paint and does not wait for the 3D to be ready */
+  .hero h1 .wi{animation:wordIn 1100ms var(--ease-out) backwards;animation-delay:calc(280ms + var(--i,0)*95ms)}
+  .hero .col>:not(h1){animation:riseIn 800ms var(--ease-out) backwards}
+  .hero .col>.eyebrow{animation-delay:120ms}.hero .col>.lead{animation-delay:820ms}.hero .col>.row{animation-delay:980ms}
+}
+@keyframes wordIn{from{transform:translateY(125%)}}
+@keyframes riseIn{from{opacity:0;transform:translateY(14px)}}
 
 .chip{display:inline-grid;place-items:center;min-width:1.6rem;height:1.6rem;padding:0 .3rem;border-radius:999px;background:var(--c);color:#000;font-weight:700;font-size:.9rem;direction:ltr;flex:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 0 14px -2px var(--c)}
 .stat{display:grid;gap:.1rem;min-width:0}
@@ -175,6 +198,10 @@ canvas.plot.short{height:8.4rem}
 .steps b{font-size:1.5rem;font-weight:700;letter-spacing:-.01em;line-height:1.2}
 .steps span{grid-column:2;color:var(--label-2);font-size:1rem}
 .steps output{grid-column:3;grid-row:1/3;font-family:var(--f-num);font-size:1.15rem;font-variant-numeric:tabular-nums;direction:ltr;text-align:left;white-space:nowrap}
+/* in slow motion the line under the current step fills as the step runs, so the room can see how long it has left */
+.steps li{position:relative}
+.steps .pg{position:absolute;inset:auto 0 calc(-.5rem - 1px) 0;height:2px;border-radius:2px;background:var(--label);transform:scaleX(0);transform-origin:right center;opacity:0;transition:opacity 200ms ease;pointer-events:none}
+.steps li.on .pg{opacity:1}
 
 /* ---------- station 3: the lab ---------- */
 .eqn{display:flex;align-items:stretch;gap:.5rem;direction:ltr}
@@ -233,7 +260,7 @@ canvas.plot.short{height:8.4rem}
 .hwr .stat b{font-size:clamp(2rem,3vw,3rem)}
 .tbars{display:grid;gap:.45rem}
 .tbars div{display:grid;grid-template-columns:9.5rem minmax(0,1fr) 3.6rem;gap:.8rem;align-items:center;font-size:.95rem;color:var(--label-2);transition:color 200ms ease}
-.tbars i{display:block;height:.75rem;border-radius:999px;background:var(--fill-2);transform-origin:right center;transition:background-color 200ms ease}
+.tbars i{display:block;height:.75rem;border-radius:999px;background:var(--fill-2);transform:scaleX(var(--v,1));transform-origin:right center;transition:background-color 200ms ease}
 .tbars b{font-variant-numeric:tabular-nums;direction:ltr;text-align:left;font-weight:600}
 .tbars div.on{color:var(--label)}
 .tbars div.on i{background:var(--label)}
@@ -266,6 +293,12 @@ tr>:nth-child(2){--k:#f5f5f7}tr>:nth-child(3){--k:#9be0b7}tr>:nth-child(4){--k:v
 .pair{display:grid;gap:.5rem;direction:ltr;margin-top:.8rem}
 .pair div{display:grid;grid-template-columns:minmax(0,1fr) 5.2rem;gap:.8rem;align-items:center}
 .pair i{display:block;height:1.1rem;border-radius:0 6px 6px 0;background:var(--c);background:linear-gradient(to right,color-mix(in srgb,var(--c) 45%,transparent),var(--c));width:var(--w);min-width:3px}
+/* the measured bars grow out of the axis when their view opens, so the eye compares lengths as they arrive */
+.bars>div:nth-child(2){--g:1}.bars>div:nth-child(3){--g:2}.pair div:nth-child(2){--h:1}
+@media (prefers-reduced-motion:no-preference){
+  .pair i{transform-origin:left center;transition:transform 900ms var(--ease-out);transition-delay:calc(80ms + var(--g,0)*140ms + var(--h,0)*110ms)}
+  @starting-style{.pair i{transform:scaleX(0)}}
+}
 .pair b{font-weight:700;font-size:1.3rem;font-variant-numeric:tabular-nums}
 .keyline{display:flex;flex-wrap:wrap;gap:.4rem 1.4rem;font-size:1rem;color:var(--label-2)}
 .keyline span{display:inline-flex;align-items:center;gap:.5rem}
@@ -291,6 +324,20 @@ tr>:nth-child(2){--k:#f5f5f7}tr>:nth-child(3){--k:#9be0b7}tr>:nth-child(4){--k:v
 .src{columns:2;column-gap:2.5rem;font-size:.9rem;color:var(--label-2)}
 .src li{break-inside:avoid;margin-bottom:.6rem;direction:ltr;text-align:left}
 .src a{color:var(--label);text-underline-offset:.2em}
+/* on a desk, what is counted or compared arrives in order when its station opens: the three closing cards one after the other,
+   the pips of the comparison row by row, the flight-time bars from the axis. Phones keep the plain reveal */
+.takes li:nth-child(2){--i:1}.takes li:nth-child(3){--i:2}
+tbody tr:nth-child(2){--r:1}tbody tr:nth-child(3){--r:2}tbody tr:nth-child(4){--r:3}.m i:nth-child(2){--p:1}.m i:nth-child(3){--p:2}
+.tbars div:nth-child(2){--i:1}.tbars div:nth-child(3){--i:2}.tbars div:nth-child(4){--i:3}
+.m i{transform-origin:left center}
+@media (min-width:861px) and (prefers-reduced-motion:no-preference){
+  .anim .st .takes li{opacity:0;transform:translateY(28px) scale(.97);transition:opacity 200ms ease,transform 200ms ease}
+  .anim .st.on .takes li{opacity:1;transform:none;transition:opacity 700ms var(--ease-out),transform 900ms var(--ease-out);transition-delay:calc(160ms + var(--i,0)*120ms)}
+  .anim .st .m i{transform:scaleX(0);transition:transform 200ms ease}
+  .anim .st.on .m i{transform:none;transition:transform 520ms var(--ease-out);transition-delay:calc(260ms + var(--r,0)*90ms + var(--p,0)*70ms)}
+  .anim .st .tbars i{transform:scaleX(0);transition:transform 200ms ease,background-color 200ms ease}
+  .anim .st.on .tbars i{transform:scaleX(var(--v,1));transition:transform 900ms var(--ease-out),background-color 200ms ease;transition-delay:calc(240ms + var(--i,0)*90ms),0ms}
+}
 
 /* ---------- dock: the one floating control surface of the current station ---------- */
 .docks{position:fixed;inset:auto 0 0 0;z-index:15;display:grid;justify-items:center;pointer-events:none;
@@ -459,7 +506,7 @@ kbd{font-family:var(--f-num);font-size:.78rem;font-weight:600;direction:ltr;unic
 <section class="st hero on" id="s0">
   <div class="wrap"><div class="col">
     <p class="eyebrow"><span class="live" aria-hidden="true"></span>הרצאה של חמש דקות. כל ההדגמות חיות.</p>
-    <h1>איך רחפן נשאר ישר?</h1>
+    <h1 class="split"><span class="w"><span class="wi" style="--i:0">איך</span></span> <span class="w"><span class="wi" style="--i:1">רחפן</span></span> <span class="w"><span class="wi" style="--i:2">נשאר</span></span> <span class="w"><span class="wi" style="--i:3">ישר?</span></span></h1>
     <p class="lead">שלושה מספרים מחזיקים אותו באוויר כבר עשרות שנים. רשתות נוירונים מציעות דרך אחרת. נראה איך כל שיטה עובדת, ומה היא עולה.</p>
     <div class="row"><button class="btn primary big" id="startB" type="button">התחילו</button><span class="hint">הכול עובד מהמקלדת: ↓ לתחנה הבאה, ← → בין הכפתורים, רווח בוחר, ? לרשימת המקשים.</span></div>
   </div></div>
