@@ -9,7 +9,7 @@
   color-scheme:dark;
   --bg:#000; --bg-2:#1c1c1e; --fill:rgba(120,120,128,.26); --fill-2:rgba(120,120,128,.4); --sep:rgba(255,255,255,.14);
   --label:#f5f5f7; --label-2:rgba(235,235,245,.7); --label-3:rgba(235,235,245,.44);
-  --glass:rgba(36,36,40,.6); --glass-edge:rgba(255,255,255,.16);
+  --glass:linear-gradient(180deg,rgba(62,62,72,.56),rgba(24,24,28,.62)); --glass-edge:rgba(255,255,255,.13); --paper:linear-gradient(180deg,#fff,#e4e5ec);
   --p:#2389e2; --i:#b38f18; --d:#d44996; --ai:#137738; --ai-hi:#34c26b; --warn:#ff9f0a; --bad:#ff453a;
   --f-ui:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Hebrew","Heebo","Segoe UI",Arial,sans-serif;
   --f-num:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
@@ -31,31 +31,50 @@ button,a,[role=slider]{-webkit-tap-highlight-color:transparent;touch-action:mani
 
 /* ---------- stage ---------- */
 #stage,#fx{position:fixed;inset:0 0 auto 0;width:100%;height:100vh;height:100lvh;display:block;pointer-events:none}
-#stage{background:radial-gradient(58% 54% at 34% 44%,#202024 0%,#0b0b0d 52%,#000 100%)}
+/* the backdrop behind the 3D: a cool light where the drone is, a warm trace low on the far side. A green layer fades in
+   over it while a network is flying. Only opacity changes, so the change of mood costs nothing to draw */
+.bk{position:fixed;inset:0 0 auto 0;height:100vh;height:100lvh;pointer-events:none;background:#000}
+.bk i{position:absolute;inset:0}
+.bk .b0{background:radial-gradient(52% 50% at 32% 44%,rgba(72,80,108,.5) 0%,rgba(30,33,46,.3) 44%,transparent 78%),radial-gradient(46% 40% at 86% 106%,rgba(255,140,80,.1),transparent 70%),radial-gradient(60% 50% at 0% 0%,rgba(70,100,180,.1),transparent 70%)}
+.bk .b1{opacity:0;transition:opacity 1200ms ease;background:radial-gradient(56% 54% at 34% 48%,rgba(26,104,70,.44) 0%,rgba(12,46,34,.28) 46%,transparent 80%),radial-gradient(46% 40% at 86% 106%,rgba(52,194,107,.1),transparent 70%)}
+[data-th="ai"] .bk .b1{opacity:1}
+.vig{position:fixed;inset:0;pointer-events:none;background:radial-gradient(118% 96% at 50% 46%,transparent 54%,rgba(0,0,0,.5) 100%)}
+/* stations without a drone get a soft coloured light of their own, above the dimmed stage and behind the text */
+.amb{position:fixed;inset:0;pointer-events:none}
+.amb i{position:absolute;inset:0;opacity:0;transition:opacity 1200ms ease}
+.amb .m-nn{background:radial-gradient(44% 54% at 26% 56%,rgba(52,194,107,.17),transparent 72%),radial-gradient(38% 42% at 98% 2%,rgba(52,194,107,.07),transparent 72%)}
+.amb .m-hw{background:radial-gradient(40% 48% at 76% 50%,rgba(150,120,255,.2),transparent 72%),radial-gradient(42% 48% at 16% 62%,rgba(84,196,214,.09),transparent 72%)}
+.amb .m-duo{background:radial-gradient(50% 62% at 100% 22%,rgba(120,150,230,.17),transparent 72%),radial-gradient(50% 62% at 0% 80%,rgba(52,194,107,.14),transparent 72%)}
+[data-amb="nn"] .m-nn,[data-amb="hw"] .m-hw,[data-amb="duo"] .m-duo{opacity:1}
+/* a trace of film grain over everything: it keeps the dark gradients from banding on a projector */
+.grain{position:fixed;inset:0;z-index:2;pointer-events:none;background-size:180px 180px}
+@media (prefers-reduced-motion:no-preference){#app{animation:intro 900ms ease backwards}}
+@keyframes intro{from{opacity:0}}
 #stage.cut{transition:opacity 220ms ease}
 .shade{position:fixed;inset:0;pointer-events:none;background:var(--bg);opacity:0}
-.glass{background:var(--glass);-webkit-backdrop-filter:blur(28px) saturate(1.7);backdrop-filter:blur(28px) saturate(1.7);border:1px solid var(--glass-edge);box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 12px 40px rgba(0,0,0,.5)}
+.glass{background:var(--glass);-webkit-backdrop-filter:blur(28px) saturate(1.7);backdrop-filter:blur(28px) saturate(1.7);border:1px solid var(--glass-edge);box-shadow:inset 0 1px 0 rgba(255,255,255,.2),inset 0 -1px 0 rgba(0,0,0,.28),0 1px 2px rgba(0,0,0,.45),0 22px 54px -10px rgba(0,0,0,.7)}
 @media (prefers-reduced-transparency:reduce){.glass{background:var(--bg-2);-webkit-backdrop-filter:none;backdrop-filter:none}}
 @media (prefers-contrast:more){.glass{border-color:rgba(255,255,255,.55)}:root{--label-2:rgba(235,235,245,.86);--fill:rgba(120,120,128,.42)}}
 
 /* ---------- buttons ---------- */
 .btn{min-height:2.75rem;padding:0 1.15rem;border-radius:999px;border:0;background:var(--fill);font-weight:600;font-size:1rem;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:.5rem;transition:transform 160ms var(--ease-out),background-color 200ms ease,opacity 200ms ease}
 .btn:active{transform:scale(.97)}
-.btn.primary{background:var(--label);color:#000}
+.btn{box-shadow:inset 0 0 0 1px rgba(255,255,255,.07)}
+.btn.primary{background:var(--paper);color:#000;box-shadow:inset 0 1px 0 #fff,0 1px 2px rgba(0,0,0,.5),0 8px 28px -8px rgba(255,255,255,.4)}
 .btn.big{min-height:3.25rem;padding:0 1.8rem;font-size:1.15rem}
 .btn[aria-pressed]::before,.btn[aria-expanded]::before{content:"";width:.5rem;height:.5rem;border-radius:50%;box-shadow:inset 0 0 0 1.5px currentColor;opacity:.75;flex:none}
-.btn[aria-pressed="true"],.btn[aria-expanded="true"]{background:rgba(255,255,255,.32)}
+.btn[aria-pressed="true"],.btn[aria-expanded="true"]{background:rgba(255,255,255,.32);box-shadow:inset 0 0 0 1px rgba(255,255,255,.22)}
 .btn[aria-pressed="true"]::before,.btn[aria-expanded="true"]::before{background:currentColor;opacity:1}
 .btn:disabled{opacity:.38;cursor:default}
 @media (hover:hover) and (pointer:fine){.btn:hover:not(:disabled):not(.primary):not([aria-pressed="true"]):not([aria-expanded="true"]){background:var(--fill-2)}.btn.primary:hover:not(:disabled){background:#fff}}
 .row{display:flex;flex-wrap:wrap;gap:.6rem 1rem;align-items:center}
 
 /* segmented control: a second, "selected" copy of the labels is clipped to the active segment, so colour and position move as one */
-.seg{position:relative;display:flex;gap:.125rem;padding:.25rem;border-radius:999px;background:var(--fill);isolation:isolate;min-width:0}
+.seg{position:relative;display:flex;gap:.125rem;padding:.25rem;border-radius:999px;background:var(--fill);box-shadow:inset 0 0 0 1px rgba(255,255,255,.05);isolation:isolate;min-width:0}
 .seg>button,.seg-hi>span{flex:1 1 auto;min-height:2.25rem;padding:0 1rem;border-radius:999px;display:grid;place-items:center;font-weight:600;font-size:.95rem;white-space:nowrap}
 .seg>button{border:0;background:none;color:var(--label-2);cursor:pointer;transition:transform 160ms var(--ease-out),color 200ms ease}
 .seg>button:active{transform:scale(.97)}
-.seg-hi{position:absolute;inset:0;display:flex;gap:.125rem;padding:.25rem;pointer-events:none;background:var(--label);color:#000;border-radius:999px;clip-path:inset(0 100% 0 0 round 999px);transition:clip-path 320ms var(--ease-drawer)}
+.seg-hi{position:absolute;inset:0;display:flex;gap:.125rem;padding:.25rem;pointer-events:none;background:var(--paper);color:#000;border-radius:999px;clip-path:inset(0 100% 0 0 round 999px);transition:clip-path 320ms var(--ease-drawer)}
 @media (hover:hover) and (pointer:fine){.seg>button:hover{color:var(--label)}}
 @media (pointer:coarse){.seg>button,.seg-hi>span{min-height:2.75rem}}
 @media (prefers-reduced-motion:reduce){.seg-hi{transition:none}}
@@ -93,11 +112,19 @@ main{position:relative;z-index:1}
 .st.rig::before{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(to left,rgba(0,0,0,.7) 0%,rgba(0,0,0,.35) 34%,transparent 58%)}
 .st.rig>*{position:relative}
 .eyebrow{display:flex;gap:.6rem;align-items:center;font-size:.9rem;font-weight:600;color:var(--label-2)}
-.eyebrow b{display:grid;place-items:center;min-width:1.5rem;height:1.5rem;border-radius:999px;background:var(--fill);color:var(--label);font-variant-numeric:tabular-nums;font-size:.85rem}
+.eyebrow b{display:grid;place-items:center;min-width:1.5rem;height:1.5rem;border-radius:999px;background:var(--fill);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);color:var(--label);font-variant-numeric:tabular-nums;font-size:.85rem}
 .eyebrow i{font-style:normal;font-weight:500;font-variant-numeric:tabular-nums;direction:ltr}
 h1{font-weight:800;font-size:clamp(3.1rem,8vw,7.2rem);line-height:1;letter-spacing:-.025em;text-wrap:balance}
 h2{font-weight:700;font-size:clamp(2.1rem,3.5vw,3.3rem);line-height:1.08;letter-spacing:-.018em;text-wrap:balance}
 h3{font-size:1.0625rem;font-weight:600}
+/* headlines and the big numbers are lit from above: white at the top, a cool silver toward the baseline */
+h1,h2,.stat b,.takes b{background:linear-gradient(180deg,#fff 22%,#aeb3c4 120%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+h1,h2{padding-block:.06em .18em;margin-block:-.06em -.18em}
+@media (forced-colors:active){h1,h2,.stat b,.takes b{background:none;-webkit-text-fill-color:currentColor}}
+.live{position:relative;width:.5rem;height:.5rem;border-radius:50%;background:var(--label);flex:none}
+.live::after{content:"";position:absolute;inset:0;border-radius:50%;background:inherit;opacity:0}
+@media (prefers-reduced-motion:no-preference){.live::after{animation:ping 2.2s var(--ease-out) infinite}}
+@keyframes ping{0%{transform:scale(1);opacity:.65}80%,100%{transform:scale(3.4);opacity:0}}
 .lead{font-size:1.3rem;line-height:1.4;color:var(--label-2);max-width:30em;text-wrap:pretty}
 .say{font-size:1.2rem;line-height:1.4;color:var(--label-2);min-height:2.8em;text-wrap:pretty}
 .say b{color:var(--label);font-weight:600}
@@ -116,7 +143,7 @@ h3{font-size:1.0625rem;font-weight:600}
 .anim.reveal .st .col>.seen{opacity:1;transform:none}
 @media (prefers-reduced-motion:reduce){.anim.reveal .st .col>*,.anim.reveal .st.on .col>*{transform:none;transition:opacity 200ms ease}}
 
-.chip{display:inline-grid;place-items:center;min-width:1.6rem;height:1.6rem;padding:0 .3rem;border-radius:999px;background:var(--c);color:#000;font-weight:700;font-size:.9rem;direction:ltr;flex:none}
+.chip{display:inline-grid;place-items:center;min-width:1.6rem;height:1.6rem;padding:0 .3rem;border-radius:999px;background:var(--c);color:#000;font-weight:700;font-size:.9rem;direction:ltr;flex:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 0 14px -2px var(--c)}
 .stat{display:grid;gap:.1rem;min-width:0}
 .stat b{font-weight:700;font-size:clamp(2.4rem,3.6vw,3.6rem);line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate;text-align:right}
 .stat span{font-size:.95rem;color:var(--label-2)}
@@ -142,7 +169,7 @@ canvas.plot.short{height:8.4rem}
 .steps li:first-child{border-top:0}
 .steps li.on{opacity:1}
 .steps li::before{content:counter(s);grid-row:1/3;display:grid;place-items:center;width:2.4rem;height:2.4rem;border-radius:50%;background:var(--fill);font-weight:700;font-size:1.1rem;font-variant-numeric:tabular-nums;transition:background-color 260ms ease,color 260ms ease}
-.steps li.on::before{background:var(--label);color:#000}
+.steps li.on::before{background:var(--paper);color:#000;box-shadow:0 0 0 .28rem rgba(255,255,255,.1)}
 .steps b{font-size:1.5rem;font-weight:700;letter-spacing:-.01em;line-height:1.2}
 .steps span{grid-column:2;color:var(--label-2);font-size:1rem}
 .steps output{grid-column:3;grid-row:1/3;font-family:var(--f-num);font-size:1.15rem;font-variant-numeric:tabular-nums;direction:ltr;text-align:left;white-space:nowrap}
@@ -150,7 +177,8 @@ canvas.plot.short{height:8.4rem}
 /* ---------- station 3: the lab ---------- */
 .eqn{display:flex;align-items:stretch;gap:.5rem;direction:ltr}
 .eqn>span{align-self:center;font-family:var(--f-num);font-size:1.25rem;color:var(--label-2)}
-.term{flex:1 1 0;min-width:0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:.1rem .55rem;align-items:center;padding:.6rem .75rem;border-radius:1rem;background:rgba(120,120,128,.16);transition:opacity 260ms ease}
+.term{flex:1 1 0;min-width:0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:.1rem .55rem;align-items:center;padding:.6rem .75rem;border-radius:1rem;background:rgba(120,120,128,.16);background:linear-gradient(180deg,color-mix(in srgb,var(--c) 16%,rgba(120,120,128,.14)),rgba(120,120,128,.1));box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--c) 42%,transparent),0 14px 30px -18px var(--c);transition:opacity 260ms ease}
+.term.off{box-shadow:inset 0 0 0 1px rgba(255,255,255,.07)}
 .term.off{opacity:.34}
 .term b{font-family:var(--f-num);font-weight:500;font-size:1.05rem;white-space:nowrap}
 .term em{grid-column:1/-1;font-style:normal;font-size:.9rem;color:var(--label-2);direction:rtl;text-align:left}
@@ -178,7 +206,7 @@ canvas.plot.short{height:8.4rem}
 .phase li:first-child{border-top:0}
 .phase li.on,.phase li.done{opacity:1}
 .phase li::before{content:counter(s);grid-row:1/3;display:grid;place-items:center;width:1.9rem;height:1.9rem;border-radius:50%;background:var(--fill);font-weight:700;font-size:.95rem;font-variant-numeric:tabular-nums;transition:background-color 260ms ease,color 260ms ease}
-.phase li.on::before{background:var(--label);color:#000}
+.phase li.on::before{background:var(--paper);color:#000;box-shadow:0 0 0 .24rem rgba(255,255,255,.1)}
 .phase li.done::before{content:"✓"}
 .phase b{font-size:1.15rem;font-weight:700}
 .phase span{grid-column:2;color:var(--label-2);font-size:.95rem;line-height:1.3}
@@ -191,8 +219,8 @@ canvas.plot.short{height:8.4rem}
 .loop3 li{display:grid;grid-template-columns:auto auto;gap:0 .5rem;align-items:center;padding:.4rem .9rem .4rem .5rem;border-radius:999px;background:rgba(120,120,128,.14);font-weight:700;opacity:.45;transition:opacity 220ms ease,background-color 220ms ease}
 .loop3 li b{grid-row:1/3;display:grid;place-items:center;width:1.6rem;height:1.6rem;border-radius:50%;background:var(--fill);font-size:.85rem;transition:background-color 220ms ease,color 220ms ease}
 .loop3 li span{font-weight:500;font-size:.8rem;color:var(--label-2)}
-.loop3 li.on{opacity:1;background:rgba(120,120,128,.3)}
-.loop3 li.on b{background:var(--label);color:#000}
+.loop3 li.on{opacity:1;background:rgba(120,120,128,.3);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
+.loop3 li.on b{background:var(--paper);color:#000}
 
 /* ---------- station 6: the cost on the drone ---------- */
 .hw{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:2.4rem;align-items:center}
@@ -221,13 +249,22 @@ td{font-size:1.45rem;font-weight:500}
 td b{font-weight:600;font-variant-numeric:tabular-nums}
 .m{display:flex;gap:3px;margin-bottom:.4rem;direction:ltr;justify-content:flex-end}
 .m i{width:1.5rem;height:.3rem;border-radius:2px;background:var(--fill-2)}
-.m3 i,.m2 i:nth-child(-n+2),.m1 i:first-child{background:var(--label)}
+.m3 i,.m2 i:nth-child(-n+2),.m1 i:first-child{background:var(--k,var(--label))}
+tr>:nth-child(2){--k:#f5f5f7}tr>:nth-child(3){--k:#9be0b7}tr>:nth-child(4){--k:var(--ai-hi)}
+@media (min-width:861px){
+  .scroll-x{margin-inline-start:-.9rem}
+  table{border-collapse:separate;border-spacing:.9rem 0}
+  thead th:not(:first-child),td{background:rgba(255,255,255,.045);padding-inline:1.4rem}
+  thead th:not(:first-child){border-radius:1.3rem 1.3rem 0 0;box-shadow:inset 0 2px 0 var(--k);padding-top:1.2rem}
+  tbody tr:last-child td{border-radius:0 0 1.3rem 1.3rem;padding-bottom:1.4rem}
+  tbody th{padding-inline-start:.9rem}
+}
 .bars{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2.4rem}
 .bars h3{font-size:1.3rem;font-weight:700;letter-spacing:-.01em}
 .bars h3 em{display:block;font-style:normal;font-weight:500;font-size:.9rem;color:var(--label-2);letter-spacing:0}
 .pair{display:grid;gap:.5rem;direction:ltr;margin-top:.8rem}
 .pair div{display:grid;grid-template-columns:minmax(0,1fr) 5.2rem;gap:.8rem;align-items:center}
-.pair i{display:block;height:1.1rem;border-radius:0 6px 6px 0;background:var(--c);width:var(--w);min-width:3px}
+.pair i{display:block;height:1.1rem;border-radius:0 6px 6px 0;background:var(--c);background:linear-gradient(to right,color-mix(in srgb,var(--c) 45%,transparent),var(--c));width:var(--w);min-width:3px}
 .pair b{font-weight:700;font-size:1.3rem;font-variant-numeric:tabular-nums}
 .keyline{display:flex;flex-wrap:wrap;gap:.4rem 1.4rem;font-size:1rem;color:var(--label-2)}
 .keyline span{display:inline-flex;align-items:center;gap:.5rem}
@@ -242,9 +279,12 @@ td b{font-weight:600;font-variant-numeric:tabular-nums}
 .quiz .ans b{color:var(--label)}
 
 /* ---------- station 8: takeaways and sources ---------- */
-.end{background:linear-gradient(transparent,var(--bg) 26%)}
+.end{background:linear-gradient(transparent,rgba(0,0,0,.6) 26%)}
 .takes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2rem}
-.takes li{display:grid;gap:.5rem;align-content:start}
+.takes{counter-reset:t}
+.takes li{counter-increment:t;display:grid;gap:.5rem;align-content:start;padding:1.4rem 1.5rem 1.6rem;border-radius:1.4rem;background:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.02));box-shadow:inset 0 0 0 1px rgba(255,255,255,.08),inset 0 2px 0 var(--k,#f5f5f7)}
+.takes li::before{content:"0" counter(t);font-family:var(--f-num);font-size:.85rem;font-weight:600;color:var(--k,var(--label-2));direction:ltr;text-align:right;letter-spacing:.04em}
+.takes li:nth-child(2){--k:var(--ai-hi)}.takes li:nth-child(3){--k:#9be0b7}
 .takes b{font-weight:700;font-size:clamp(1.6rem,2.4vw,2.3rem);line-height:1.12;letter-spacing:-.015em}
 .takes span{color:var(--label-2);font-size:1.15rem}
 .src{columns:2;column-gap:2.5rem;font-size:.9rem;color:var(--label-2)}
@@ -286,7 +326,6 @@ input[type=range]::-moz-range-thumb{width:1.4rem;height:1.4rem;border:0;border-r
 @media (pointer:coarse){input[type=range]{height:2.75rem}input[type=range]::-webkit-slider-thumb{width:1.75rem;height:1.75rem;margin-top:-.7rem}}
 #notes{inset:calc(4.2rem + env(safe-area-inset-top,0px)) auto auto max(16px,env(safe-area-inset-left,0px));position:fixed;z-index:19;width:min(26rem,calc(100vw - 32px));transform-origin:0 0;font-size:1.05rem}
 #notes h3{font-size:.85rem;font-weight:600;color:var(--label-2);margin-bottom:.15rem}
-.no3d #stage{background:radial-gradient(70% 60% at 30% 40%,#26262b 0%,#0b0b0d 60%,#000 100%)}
 
 /* ---------- narrow ---------- */
 @media (max-width:1680px){.nav em,.nav .seg-hi em{display:none}.nav>button,.nav .seg-hi>span{padding:0 .75rem;min-width:2.4rem;justify-content:center}}
@@ -318,11 +357,16 @@ input[type=range]::-moz-range-thumb{width:1.4rem;height:1.4rem;border:0;border-r
   :root{--sh:46svh}
   html{scroll-snap-type:none}
   .st.rig::before,.st.field::before{display:none}
-  #stage,#fx,#shade{inset:0 0 auto 0;height:var(--sh);z-index:3;transition:transform 480ms var(--ease-drawer),opacity 300ms ease;
+  #stage,#fx,#shade,.bk{inset:0 0 auto 0;height:var(--sh);z-index:3;transition:transform 480ms var(--ease-drawer),opacity 300ms ease;
     -webkit-mask-image:linear-gradient(#000 calc(100% - 2.4rem),transparent);mask-image:linear-gradient(#000 calc(100% - 2.4rem),transparent)}
-  #stage{background:radial-gradient(80% 70% at 50% 45%,#202024 0%,#0b0b0d 60%,#000 100%)}
-  .nostage #stage,.nostage #fx,.nostage #shade{transform:translateY(-100%);opacity:0}
-  @media (prefers-reduced-motion:reduce){#stage,#fx,#shade{transition:opacity 200ms ease}.nostage #stage,.nostage #fx,.nostage #shade{transform:none}}
+  .bk .b0{background:radial-gradient(82% 72% at 50% 46%,rgba(72,80,108,.55) 0%,rgba(30,33,46,.3) 56%,transparent 100%)}
+  .bk .b1{background:radial-gradient(82% 72% at 50% 46%,rgba(26,104,70,.46) 0%,rgba(12,46,34,.28) 56%,transparent 100%)}
+  .vig{display:none}
+  .amb .m-nn{background:radial-gradient(110% 38% at 50% 0%,rgba(52,194,107,.16),transparent 72%)}
+  .amb .m-hw{background:radial-gradient(110% 38% at 50% 0%,rgba(150,120,255,.18),transparent 72%)}
+  .amb .m-duo{background:radial-gradient(90% 34% at 100% 0%,rgba(120,150,230,.16),transparent 72%),radial-gradient(90% 34% at 0% 4%,rgba(52,194,107,.12),transparent 72%)}
+  .nostage #stage,.nostage #fx,.nostage #shade,.nostage .bk{transform:translateY(-100%);opacity:0}
+  @media (prefers-reduced-motion:reduce){#stage,#fx,#shade,.bk{transition:opacity 200ms ease}.nostage #stage,.nostage #fx,.nostage #shade,.nostage .bk{transform:none}}
   /* the floating controls get a solid edge under them, so text never shows around the bar */
   .docks::before{content:"";position:absolute;z-index:-1;inset:auto 0 0 0;height:calc(100% + 2.2rem);pointer-events:none;background:linear-gradient(to top,#000 55%,rgba(0,0,0,0))}
   .dock:not(.on){transition:none}
@@ -360,8 +404,10 @@ input[type=range]::-moz-range-thumb{width:1.4rem;height:1.4rem;border:0;border-r
 }
 
 /* a button that is the next thing to press pulses gently */
-@media (prefers-reduced-motion:no-preference){.btn.nudge{animation:nudge 1.6s var(--ease-in-out) infinite}}
-@keyframes nudge{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,.55)}50%{box-shadow:0 0 0 .5rem rgba(255,255,255,0)}}
+.btn.nudge{position:relative}
+.btn.nudge::after{content:"";position:absolute;inset:-2px;border-radius:inherit;border:2px solid rgba(255,255,255,.8);pointer-events:none;opacity:0}
+@media (prefers-reduced-motion:no-preference){.btn.nudge::after{animation:nudge 1.6s var(--ease-out) infinite}}
+@keyframes nudge{0%{transform:scale(1);opacity:.85}80%,100%{transform:scale(1.1,1.4);opacity:0}}
 .btn.nudge{outline:2px solid rgba(255,255,255,.85);outline-offset:2px}
 /* keyboard: key caps on buttons, the shortcut list, a clear ring on the control in focus */
 .dock button:focus-visible,#tune :focus-visible,#quiz button:focus-visible{outline:2.5px solid var(--label);outline-offset:3px}
@@ -385,9 +431,12 @@ kbd{font-family:var(--f-num);font-size:.78rem;font-weight:600;direction:ltr;unic
 </style>
 </head><body>
 <div id="app" dir="rtl" lang="he">
+<div class="bk" aria-hidden="true"><i class="b0"></i><i class="b1"></i></div>
 <canvas id="stage" aria-hidden="true"></canvas>
 <canvas id="fx" aria-hidden="true"></canvas>
+<div class="vig" aria-hidden="true"></div>
 <div class="shade" id="shade" aria-hidden="true"></div>
+<div class="amb" aria-hidden="true"><i class="m-nn"></i><i class="m-hw"></i><i class="m-duo"></i></div>
 
 <header class="bar">
   <button class="brand" id="brand" type="button">PID <span>מול</span> רשת נוירונים</button>
@@ -407,7 +456,7 @@ kbd{font-family:var(--f-num);font-size:.78rem;font-weight:600;direction:ltr;unic
 <!-- 0 -->
 <section class="st hero on" id="s0">
   <div class="wrap"><div class="col">
-    <p class="eyebrow">הרצאה של חמש דקות. כל ההדגמות חיות.</p>
+    <p class="eyebrow"><span class="live" aria-hidden="true"></span>הרצאה של חמש דקות. כל ההדגמות חיות.</p>
     <h1>איך רחפן נשאר ישר?</h1>
     <p class="lead">שלושה מספרים מחזיקים אותו באוויר כבר עשרות שנים. רשתות נוירונים מציעות דרך אחרת. נראה איך כל שיטה עובדת, ומה היא עולה.</p>
     <div class="row"><button class="btn primary big" id="startB" type="button">התחילו</button><span class="hint">הכול עובד מהמקלדת: ↓ לתחנה הבאה, ← → בין הכפתורים, רווח בוחר, ? לרשימת המקשים.</span></div>
@@ -977,6 +1026,7 @@ class Strip {
     c.save(); c.beginPath(); c.rect(L, Tm - 2, pw + 2, ph + 4); c.clip(); c.lineJoin = 'round';
     o.series.forEach((s, k) => { const b = this.buf[k]; c.strokeStyle = s.c; c.lineWidth = s.w || 2; c.setLineDash(s.dash || []); c.beginPath(); let pen = false;
       for (let i = 0; i < n; i++){ const v = b[(this.h + i) % n]; if (v !== v){ pen = false; continue; } const x = X(i), y = Y(clamp(v, y0 - (y1 - y0), y1 + (y1 - y0))); if (pen) c.lineTo(x, y); else { c.moveTo(x, y); pen = true; } }
+      if (s.glow){ for (const [k, a] of [[5, .06], [3.2, .09], [2, .12]]){ c.globalAlpha = a; c.lineWidth = (s.w || 2) * k; c.stroke(); } c.globalAlpha = 1; c.lineWidth = s.w || 2; }
       c.stroke(); });
     c.setLineDash([]); c.restore();
     if (this.hover !== null && this.tip){
@@ -1093,7 +1143,7 @@ const labPlot = { cv: $('#labChart'), n: 360, sp: new Float32Array(360).fill(NaN
     const fs = clamp(REM * .78, 11, 16), L = fs * 3, Rm = 4, Tm = fs * 1.7, B = fs * 1.8, pw = W - L - Rm, ph = H - Tm - B, PAST = 6, FUT = 1.35, y0 = -10, y1 = 35, n = this.n, last = n - 1;
     const X = t => L + (t + PAST) / (PAST + FUT) * pw, Y = v => Tm + (1 - (v - y0) / (y1 - y0)) * ph, xn = X(0), T = i => -(last - i) / 60, at = (b, i) => b[(this.h + i) % n];
     const spN = at(this.sp, last), thN = at(this.th, last), g = lab.g, live = thN === thN;
-    c.fillStyle = 'rgba(255,255,255,.05)'; c.fillRect(xn, Tm, W - Rm - xn, ph);
+    { const fg = c.createLinearGradient(xn, 0, W - Rm, 0); fg.addColorStop(0, 'rgba(255,255,255,.1)'); fg.addColorStop(1, 'rgba(255,255,255,.015)'); c.fillStyle = fg; c.fillRect(xn, Tm, W - Rm - xn, ph); }
     c.font = `${fs}px ${MONO}`; c.lineWidth = 1; c.textBaseline = 'middle'; c.textAlign = 'right'; c.direction = 'ltr';
     for (let v = -10; v <= 30; v += 10){ const y = Math.round(Y(v)) + .5; c.strokeStyle = v === 0 ? 'rgba(255,255,255,.24)' : 'rgba(255,255,255,.09)'; seg2(c, L, y, W - Rm, y); c.fillStyle = L2; c.fillText(show(v, 0) + '°', L - 7, y); }
     c.save(); c.beginPath(); c.rect(L, Tm, pw, ph); c.clip(); c.lineJoin = 'round'; c.lineCap = 'round';
@@ -1101,7 +1151,8 @@ const labPlot = { cv: $('#labChart'), n: 360, sp: new Float32Array(360).fill(NaN
     if (first >= 0){
       if (g.ki > 0){ c.beginPath(); for (let i = first; i <= last; i++){ const x = X(T(i)), y = Y(at(this.th, i)); if (i === first) c.moveTo(x, y); else c.lineTo(x, y); } for (let i = last; i >= first; i--) c.lineTo(X(T(i)), Y(at(this.sp, i))); c.closePath(); c.fillStyle = 'rgba(179,143,24,.42)'; c.fill(); }
       c.strokeStyle = L2; c.lineWidth = 1.5; c.setLineDash([6, 5]); c.beginPath(); for (let i = first; i <= last; i++){ const x = X(T(i)), y = Y(at(this.sp, i)); if (i === first) c.moveTo(x, y); else c.lineTo(x, y); } c.lineTo(X(FUT), Y(spN)); c.stroke(); c.setLineDash([]);
-      c.strokeStyle = LABEL; c.lineWidth = 2.5; c.beginPath(); for (let i = first; i <= last; i++){ const x = X(T(i)), y = Y(clamp(at(this.th, i), y0 - 20, y1 + 20)); if (i === first) c.moveTo(x, y); else c.lineTo(x, y); } c.stroke();
+      c.beginPath(); for (let i = first; i <= last; i++){ const x = X(T(i)), y = Y(clamp(at(this.th, i), y0 - 20, y1 + 20)); if (i === first) c.moveTo(x, y); else c.lineTo(x, y); }
+      for (const [w, a] of [[15, .035], [10, .05], [6, .07]]){ c.strokeStyle = `rgba(245,245,247,${a})`; c.lineWidth = w; c.stroke(); } c.strokeStyle = LABEL; c.lineWidth = 2.5; c.stroke();
     }
     let dEnd = null;
     if (live && g.kd > 0){ const sl = lab.c.dF; let t1 = FUT * .8; if (sl > 0) t1 = Math.min(t1, (y1 - 1 - thN) / sl); else if (sl < 0) t1 = Math.min(t1, (y0 + 1 - thN) / sl); t1 = Math.max(.04, t1);
@@ -1109,7 +1160,7 @@ const labPlot = { cv: $('#labChart'), n: 360, sp: new Float32Array(360).fill(NaN
     if (live && g.kp > 0){ c.strokeStyle = CP; c.lineWidth = 6; seg2(c, xn, Y(clamp(thN, y0, y1)), xn, Y(spN)); }
     c.restore();
     c.strokeStyle = 'rgba(255,255,255,.38)'; c.lineWidth = 1; seg2(c, Math.round(xn) + .5, Tm, Math.round(xn) + .5, Tm + ph);
-    if (live){ c.fillStyle = LABEL; c.beginPath(); c.arc(xn, Y(clamp(thN, y0, y1)), 4.5, 0, 7); c.fill();
+    if (live){ for (const [r, a] of [[13, .06], [9.5, .09], [7, .12]]){ c.fillStyle = `rgba(245,245,247,${a})`; c.beginPath(); c.arc(xn, Y(clamp(thN, y0, y1)), r, 0, 7); c.fill(); } c.fillStyle = LABEL; c.beginPath(); c.arc(xn, Y(clamp(thN, y0, y1)), 4.5, 0, 7); c.fill();
       if (g.kp > 0) chip(c, xn - 17, (Y(clamp(thN, y0, y1)) + Y(spN)) / 2, 'P', CP, 10);
       if (g.ki > 0 && first >= 0){ const i = Math.max(first, last - 150); chip(c, X(T(i)), clamp((Y(at(this.th, i)) + Y(at(this.sp, i))) / 2, Tm + 12, Tm + ph - 12), 'I', CI, 10); }
       if (dEnd) chip(c, clamp(dEnd[0] + 4, xn + 14, W - Rm - 11), clamp(dEnd[1] - 16, Tm + 11, Tm + ph - 11), 'D', CD, 10); }
@@ -1136,7 +1187,7 @@ addEventListener('pointerdown', e => { if (tune.classList.contains('on') && !tun
 
 /* --- station 4: fixed gains vs a single neuron that retunes them in flight --- */
 const G0 = { kp: 3, ki: 0, kd: .45 };
-const adChart = new Strip($('#adChart'), { win: 12, yMin: -5, yMax: 25, step: 10, unit: '°', series: [{ c: L2, dash: [6, 5], w: 1.5, label: 'יעד' }, { c: L2, w: 1.5, label: 'קבוע' }, { c: CAI, w: 3, label: 'לומד' }] });
+const adChart = new Strip($('#adChart'), { win: 12, yMin: -5, yMax: 25, step: 10, unit: '°', series: [{ c: L2, dash: [6, 5], w: 1.5, label: 'יעד' }, { c: L2, w: 1.5, label: 'קבוע' }, { c: CAI, w: 3, label: 'לומד', glow: true }] });
 const GN = gsBest(0, 1); // the gains an engineer would pick for a full battery and no load
 const ad = { acc: 0, k: 0, t: 0, r: 0, sa: makePlant(0), sb: makePlant(0), pid: makePID(), pidB: makePID(), nn: makeNeuron(G0), par: { ...BASE }, ua: 0, ub: 0, ea: 0, eb: 0, last: '', mode: 'pre', rate: 1, gB: { ...GN },
   step(){
@@ -1284,7 +1335,7 @@ const sw = { pop: null, state: 'idle', acc: 0, tSel: 0, par: { ...BASE }, kicks:
     const fs = clamp(REM * .78, 11, 16), L = fs * 3.2, Tm = fs * 1.5, B = fs * 1.6, pw = W - L - 4, ph = H - Tm - B, slots = Math.max(12, h.length + (run ? 1 : 0)), bw = pw / slots, Y = v => Tm + (1 - v) * ph;
     c.font = `${fs}px ${MONO}`; c.textAlign = 'right'; c.textBaseline = 'middle'; c.direction = 'ltr'; c.lineWidth = 1;
     for (const v of [0, .5, 1]){ const y = Math.round(Y(v)) + .5; c.strokeStyle = v ? 'rgba(255,255,255,.09)' : 'rgba(255,255,255,.24)'; seg2(c, L, y, W - 4, y); c.fillStyle = L2; c.fillText(Math.round(v * 100) + '%', L - 7, y); }
-    const bar = (i, v, live) => { const x = L + i * bw + bw * .16, w = bw * .68, y = Y(v), hh = Math.max(2, Y(0) - y), r = Math.min(4, w / 2, hh); c.beginPath(); c.moveTo(x, Y(0)); c.lineTo(x, y + r); c.quadraticCurveTo(x, y, x + r, y); c.lineTo(x + w - r, y); c.quadraticCurveTo(x + w, y, x + w, y + r); c.lineTo(x + w, Y(0)); c.closePath(); c.fillStyle = live ? 'rgba(52,194,107,.45)' : CAI; c.fill(); };
+    const bar = (i, v, live) => { const x = L + i * bw + bw * .16, w = bw * .68, y = Y(v), hh = Math.max(2, Y(0) - y), r = Math.min(4, w / 2, hh); c.beginPath(); c.moveTo(x, Y(0)); c.lineTo(x, y + r); c.quadraticCurveTo(x, y, x + r, y); c.lineTo(x + w - r, y); c.quadraticCurveTo(x + w, y, x + w, y + r); c.lineTo(x + w, Y(0)); c.closePath(); const bgr = c.createLinearGradient(0, y, 0, Y(0)); bgr.addColorStop(0, live ? 'rgba(75,224,133,.6)' : '#4be085'); bgr.addColorStop(1, live ? 'rgba(52,194,107,.12)' : 'rgba(52,194,107,.38)'); c.fillStyle = bgr; c.fill(); };
     h.forEach((v, i) => bar(i, v, false)); if (run) bar(h.length, this.air, true);
     c.textBaseline = 'alphabetic'; c.textAlign = 'center'; c.fillStyle = L2; const every = slots > 16 ? 4 : slots > 12 ? 2 : 1; for (let i = 0; i < slots; i += every) c.fillText(String(i + 1), L + (i + .5) * bw, H - 4);
     const li = h.length - 1; if (li >= 0 && !run){ c.fillStyle = LABEL; c.font = `600 ${fs * 1.05}px ${UI}`; c.fillText(Math.round(h[li] * 100) + '%', clamp(L + (li + .5) * bw, L + 18, W - 22), Y(h[li]) - 6); }
@@ -1418,7 +1469,7 @@ const nn = { v: 0, t: 0, f: null, ep: 0,
     if (!paused && !RM) this.t += dt; const t = this.t;
     c.setTransform(f.d, 0, 0, f.d, 0, 0); c.clearRect(0, 0, W, H); c.direction = 'rtl';
     const fs = clamp(REM * .85, 12, 17), ang = 14 * Math.sin(t * .9), rate = 40 * Math.cos(t * .9);
-    const iso = v => '\u2066' + v + '\u2069', pulse = (x0, y0, x1, y1, u, r, col) => { c.beginPath(); c.arc(x0 + (x1 - x0) * u, y0 + (y1 - y0) * u, r, 0, 7); c.fillStyle = col; c.fill(); };
+    const iso = v => '\u2066' + v + '\u2069', pulse = (x0, y0, x1, y1, u, r, col) => { const px = x0 + (x1 - x0) * u, py = y0 + (y1 - y0) * u; c.beginPath(); c.arc(px, py, r * 2.7, 0, 7); c.fillStyle = 'rgba(255,255,255,.12)'; c.fill(); c.beginPath(); c.arc(px, py, r, 0, 7); c.fillStyle = col; c.fill(); };
     if (this.v === 0){ // one neuron, with real numbers
       const w1 = .8, w2 = .25, xi = W * .14, xn = W * .5, xo = W * .9 - fs * 1.6, y1 = H * .3, y2 = H * .72, yn = H * .5, R = Math.min(H * .2, W * .1);
       const s = w1 * ang + w2 * rate, out = Math.tanh(s / 12), u = (t * .9) % 1;
@@ -1429,6 +1480,7 @@ const nn = { v: 0, t: 0, f: null, ep: 0,
         text(c, iso(val), xi, y, `600 ${fs * .95}px ${MONO}`, LABEL); text(c, name, xi, y + fs * 2.9, `600 ${fs}px ${UI}`, L2);
         const mx = xi + fs * 2.2 + (xn - R - xi - fs * 2.2) * .22, my = y + (yn - y) * .22 - fs * 1.3; text(c, iso(`× ${fmt(w, 2)}`), mx, my, `600 ${fs}px ${MONO}`, CAI);
       });
+      { const hg = c.createRadialGradient(xn, yn, R * .9, xn, yn, R * 2.1); hg.addColorStop(0, `rgba(52,194,107,${fmt(.16 + .14 * Math.abs(out), 3)})`); hg.addColorStop(1, 'rgba(52,194,107,0)'); c.fillStyle = hg; c.beginPath(); c.arc(xn, yn, R * 2.1, 0, 7); c.fill(); }
       c.beginPath(); c.arc(xn, yn, R, 0, 7); c.fillStyle = '#0b0d0c'; c.fill(); c.strokeStyle = CAI; c.lineWidth = 2.5; c.stroke();
       text(c, 'Σ', xn, yn - R * .18, `700 ${R * .7}px ${UI}`, LABEL); text(c, iso(show(s, 1)), xn, yn + R * .42, `500 ${fs * .9}px ${MONO}`, L2);
       text(c, 'נוירון', xn, yn - R - fs * 1.1, `700 ${fs * 1.05}px ${UI}`, CAI);
@@ -1559,17 +1611,33 @@ function makeStage(){
   try { // a small softbox studio, baked once into an environment map for reflections
     const es = new T.Scene(); es.add(new T.Mesh(new T.BoxGeometry(24, 24, 24), new T.MeshBasicMaterial({ color: 0x030304, side: T.BackSide })));
     const box = (c, k, p, s) => { const m = new T.Mesh(new T.BoxGeometry(1, 1, 1), new T.MeshBasicMaterial({ color: new T.Color(c).multiplyScalar(k) })); m.position.set(p[0], p[1], p[2]); m.scale.set(s[0], s[1], s[2]); es.add(m); };
-    box(0xffffff, 8, [0, 10, 0], [9, .2, 9]); box(0xcfe0ff, 4.5, [-10, 2, 3], [.2, 6, 6]); box(0xffe2c4, 3, [10, 1, -3], [.2, 5, 5]); box(0xffffff, 2, [0, 3, 11], [10, 3, .2]);
+    // two long strips overhead draw the long, clean highlights of a product shot along the canopy and the motor bells;
+    // a cool wall on one side, a warm one on the other, and a thin cool strip behind that catches every edge
+    box(0xffffff, 6.5, [-3.4, 10, 1], [1.4, .2, 14]); box(0xffffff, 6.5, [3.4, 10, -1], [1.4, .2, 14]); box(0xffffff, 1.5, [0, 10.6, 0], [10, .2, 10]);
+    box(0xbdd3ff, 5, [-10, 2, 3], [.2, 6, 7]); box(0xffd0a6, 3.6, [10, 1, -3], [.2, 5, 6]); box(0xffffff, 1.6, [0, 3, 11], [10, 3, .2]); box(0x9fc0ff, 1.1, [0, 2.4, -11], [13, 1.1, .2]);
     const pm = new T.PMREMGenerator(R); scene.environment = pm.fromScene(es, .04).texture; pm.dispose();
   } catch (e) { /* lights alone still work */ }
-  scene.add(new T.HemisphereLight(0xffffff, 0x060608, .42));
-  const key = new T.DirectionalLight(0xffffff, 1.5); key.position.set(3.5, 7, 5); key.castShadow = true; key.shadow.mapSize.set(TOUCH ? 1024 : 2048, TOUCH ? 1024 : 2048);
+  scene.add(new T.HemisphereLight(0xffffff, 0x060608, .3));
+  const key = new T.DirectionalLight(0xfff5ea, 1.55); key.position.set(3.5, 7, 5); key.castShadow = true; key.shadow.mapSize.set(TOUCH ? 1024 : 2048, TOUCH ? 1024 : 2048);
   Object.assign(key.shadow.camera, { left: -7, right: 7, top: 7, bottom: -7, near: 1, far: 24 }); key.shadow.camera.updateProjectionMatrix(); key.shadow.bias = -.0006; key.shadow.radius = 4; scene.add(key);
-  const rim = new T.DirectionalLight(0xa8c4ff, 1.1); rim.position.set(-6, 3, -5); scene.add(rim);
-  const warm = new T.PointLight(0xffb080, .7, 30); warm.position.set(6, 1.5, -3); scene.add(warm);
-  const floor = new T.Mesh(new T.CircleGeometry(120, 64), new T.MeshStandardMaterial({ color: col(0x0e0e11), roughness: .9, metalness: .15, envMapIntensity: .2 })); floor.rotation.x = -Math.PI / 2; floor.position.y = FLOOR; floor.receiveShadow = true; scene.add(floor);
-  const gc = document.createElement('canvas'); gc.width = gc.height = 256; { const g2 = gc.getContext('2d'), gr = g2.createRadialGradient(128, 128, 0, 128, 128, 128); gr.addColorStop(0, '#fff'); gr.addColorStop(.35, '#999'); gr.addColorStop(.7, '#2a2a2a'); gr.addColorStop(1, '#000'); g2.fillStyle = gr; g2.fillRect(0, 0, 256, 256); }
-  const pool = new T.Mesh(new T.CircleGeometry(17, 64), new T.MeshStandardMaterial({ color: col(0x3e3e46), roughness: .7, metalness: .2, envMapIntensity: .3, transparent: true, alphaMap: new T.CanvasTexture(gc), depthWrite: false })); pool.rotation.x = -Math.PI / 2; pool.position.y = FLOOR + .004; pool.receiveShadow = true; scene.add(pool);
+  // the two back lights carry the colour of the story: cool steel and a warm kick for the classic controller, green once a network is flying
+  const cRim = col(0x9dbcff), cRimAI = col(0x8fe9c0), cWarm = col(0xffa870), cWarmAI = col(0x3fe08a);
+  const rim = new T.DirectionalLight(0x9dbcff, 1.5); rim.position.set(-6, 3.2, -5.5); scene.add(rim);
+  const warm = new T.PointLight(0xffa870, .95, 30); warm.position.set(6, 1.5, -3); scene.add(warm);
+  const floor = new T.Mesh(new T.CircleGeometry(120, 64), new T.MeshStandardMaterial({ color: col(0x0d0d10), roughness: .8, metalness: .2, envMapIntensity: .25 })); floor.rotation.x = -Math.PI / 2; floor.position.y = FLOOR; floor.receiveShadow = true; scene.add(floor);
+  const gc = document.createElement('canvas'); gc.width = gc.height = 256; { const g2 = gc.getContext('2d'), gr = g2.createRadialGradient(128, 128, 0, 128, 128, 128); gr.addColorStop(0, '#fff'); gr.addColorStop(.3, '#8a8a8a'); gr.addColorStop(.62, '#222'); gr.addColorStop(1, '#000'); g2.fillStyle = gr; g2.fillRect(0, 0, 256, 256); }
+  const pool = new T.Mesh(new T.CircleGeometry(17, 64), new T.MeshStandardMaterial({ color: col(0x25262e), roughness: .5, metalness: .35, envMapIntensity: .45, transparent: true, alphaMap: new T.CanvasTexture(gc), depthWrite: false })); pool.rotation.x = -Math.PI / 2; pool.position.y = FLOOR + .004; pool.receiveShadow = true; scene.add(pool);
+  // dust in the light: two slow, sparse clouds turning against each other, so the air has depth without drawing the eye
+  const dotC = document.createElement('canvas'); dotC.width = dotC.height = 64; { const g2 = dotC.getContext('2d'), gr = g2.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.25, 'rgba(255,255,255,.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g2.fillStyle = gr; g2.fillRect(0, 0, 64, 64); }
+  const dotMap = new T.CanvasTexture(dotC), dustM = new T.PointsMaterial({ size: .055, map: dotMap, color: 0xcfdcff, transparent: true, opacity: .42, depthWrite: false, blending: T.AdditiveBlending, sizeAttenuation: true });
+  const dust = [0, 1].map(k => { const n = TOUCH ? 40 : 90, p = new Float32Array(n * 3), r = mulberry32(31 + k); for (let i = 0; i < n; i++){ p[i * 3] = (r() - .5) * 15; p[i * 3 + 1] = FLOOR + .3 + r() * 6.4; p[i * 3 + 2] = (r() - .5) * 11 - 1; }
+    const g = new T.BufferGeometry(); g.setAttribute('position', new T.BufferAttribute(p, 3)); const o = new T.Points(g, dustM); o.frustumCulled = false; scene.add(o); return o; });
+  // a measuring ring on the floor under each drone, like the turntable of a test rig
+  const ringMap = (() => { const c = document.createElement('canvas'); c.width = c.height = 1024; const g = c.getContext('2d'); g.translate(512, 512); g.strokeStyle = '#fff'; g.lineCap = 'butt';
+    g.lineWidth = 3; g.beginPath(); g.arc(0, 0, 470, 0, 7); g.stroke(); g.lineWidth = 1.5; g.globalAlpha = .7; g.beginPath(); g.arc(0, 0, 330, 0, 7); g.stroke(); g.globalAlpha = 1;
+    for (let i = 0; i < 72; i++){ const a = i * Math.PI / 36, long = i % 6 === 0, r0 = long ? 430 : 450; g.lineWidth = long ? 3 : 1.5; g.globalAlpha = long ? 1 : .6; g.beginPath(); g.moveTo(Math.cos(a) * r0, Math.sin(a) * r0); g.lineTo(Math.cos(a) * 470, Math.sin(a) * 470); g.stroke(); }
+    const t = new T.CanvasTexture(c); t.anisotropy = Math.min(8, R.capabilities.getMaxAnisotropy ? R.capabilities.getMaxAnisotropy() : 1); return t; })();
+  const ringM = new T.MeshBasicMaterial({ map: ringMap, color: 0xdfe6ff, transparent: true, opacity: .2, depthWrite: false, toneMapped: false }), ringG = new T.CircleGeometry(2.15, 64);
 
   /* ---- the drone model: a 5-inch quad built from real shapes (extruded carbon plates, lathed motors, twisted tri-blade props) ---- */
   const seedR = s => () => { s = (s + 0x6d2b79f5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
@@ -1593,7 +1661,7 @@ function makeStage(){
   const blurMap = tex(256, 256, (g, w) => { const c = w / 2, gr = g.createRadialGradient(c, c, 0, c, c, c); gr.addColorStop(0, '#000'); gr.addColorStop(.12, '#000'); gr.addColorStop(.2, '#777'); gr.addColorStop(.55, '#fff'); gr.addColorStop(.82, '#bbb'); gr.addColorStop(.94, '#fff'); gr.addColorStop(1, '#000'); g.fillStyle = gr; g.fillRect(0, 0, w, w); }, false);
 
   const M = {
-    carbon: new T.MeshPhysicalMaterial({ map: carbonMap, color: 0xffffff, metalness: .25, roughness: .42, clearcoat: 1, clearcoatRoughness: .12 }),
+    carbon: new T.MeshPhysicalMaterial({ map: carbonMap, color: 0xffffff, metalness: .25, roughness: .42, clearcoat: 1, clearcoatRoughness: .14, envMapIntensity: .7 }),
     shell: new T.MeshPhysicalMaterial({ color: col(0x2a2b31), metalness: .2, roughness: .3, clearcoat: 1, clearcoatRoughness: .06 }),
     metal: new T.MeshStandardMaterial({ color: col(0xc4c7cf), metalness: 1, roughness: .24 }),
     anod: new T.MeshPhysicalMaterial({ color: col(0x3b3d45), metalness: .9, roughness: .3, clearcoat: .6, clearcoatRoughness: .2 }),
@@ -1611,7 +1679,7 @@ function makeStage(){
     red: new T.MeshStandardMaterial({ color: col(0xb3261e), metalness: .1, roughness: .45 }),
     yellow: new T.MeshStandardMaterial({ color: col(0xe0b21f), metalness: .1, roughness: .5 }),
     glass: new T.MeshPhysicalMaterial({ color: col(0x0a1220), metalness: .1, roughness: .02, clearcoat: 1, clearcoatRoughness: 0, envMapIntensity: 2 }),
-    crate: new T.MeshPhysicalMaterial({ color: col(0xd8d8dc), metalness: .05, roughness: .55, clearcoat: .3 }),
+    crate: new T.MeshPhysicalMaterial({ color: col(0x4d505b), metalness: .05, roughness: .7, clearcoat: .15 }),
     blade: new T.MeshPhysicalMaterial({ color: col(0x5d6470), metalness: 0, roughness: .2, clearcoat: 1, transparent: true, opacity: .82, side: T.DoubleSide }),
     disc: new T.MeshBasicMaterial({ color: 0xffffff, alphaMap: blurMap, transparent: true, opacity: .1, depthWrite: false, side: T.DoubleSide }),
     stand: new T.MeshStandardMaterial({ color: col(0x4a4a50), metalness: .9, roughness: .34 }),
@@ -1742,7 +1810,8 @@ function makeStage(){
     for (const sx of [-1, 1]){ const sg = new T.Group(); sg.add(mesh(sx < 0 ? G.legL : G.legR, M.carbon)); for (const z of [-.15, .15]){ const f = mesh(G.foot, M.rubber); f.position.set(sx * .43, -.48, z); sg.add(f); } part(sg, 0, -.1, 0, sx * .28, -1.0, 0, .25); skids.push(sg); }
     const crate = grp([G.crate, M.crate], [G.cord, M.dark, 0, .3, 0]); crate.position.set(1.12, Y0 - .45, 1.12); crate.scale.setScalar(.001); tilt.add(crate);
     const stand = new T.Group(); const base = mesh(G.sbase, M.stand); stand.add(base); stand.add(mesh(G.pole, M.stand)); const j = mesh(G.joint, M.metal); j.position.y = 2.6; stand.add(j); stand.position.set(0, FLOOR, 0); scene.add(stand);
-    return Object.assign(r, { root, tilt, parts, props, leds, skids, crate, stand, imu, fc, pcbM, imuM, th: 0, u: 0, mix: 0, load: 0, weak: 0, x: 0, y: 0, s: 1 });
+    const ring = new T.Mesh(ringG, ringM); ring.rotation.x = -Math.PI / 2; ring.position.y = FLOOR + .012; ring.renderOrder = 1; scene.add(ring);
+    return Object.assign(r, { root, tilt, parts, props, leds, skids, crate, stand, ring, imu, fc, pcbM, imuM, th: 0, u: 0, mix: 0, load: 0, weak: 0, x: 0, y: 0, s: 1 });
   }
   const A = buildRig(), B = buildRig();
   const streaks = []; const sm = new T.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false });
@@ -1766,6 +1835,38 @@ function makeStage(){
   const PIV = FLOOR + 2.6 * SWL.s, vth = new Float32Array(SWN);
   { const m = new T.Matrix4(); for (let a = 0; a < SWN; a++){ m.makeScale(SWL.s, SWL.s, SWL.s); m.setPosition(swPos.px[a], PIV, swPos.pz[a]); iStand.setMatrixAt(a, m); } iStand.instanceMatrix.needsUpdate = true; }
 
+  /* the finishing pass: the brightest parts of the frame bleed light, the way a lens does. The finished frame is copied
+     off the screen, so the scene itself is still drawn directly, with the browser's own antialiasing, and nothing is lost
+     if this fails. Seven small passes at a quarter and an eighth of the resolution. A phone that cannot keep up gives it back. */
+  const post = (() => {
+    const none = { on: false, k: 1, size(){}, run(){}, pace(){} };
+    try {
+      const cam2 = new T.OrthographicCamera(-1, 1, 1, -1, 0, 1), sc2 = new T.Scene(), quad = new T.Mesh(new T.PlaneGeometry(2, 2)); quad.frustumCulled = false; sc2.add(quad);
+      const rt = () => new T.WebGLRenderTarget(4, 4, { minFilter: T.LinearFilter, magFilter: T.LinearFilter, depthBuffer: false, stencilBuffer: false });
+      const a4 = rt(), b4 = rt(), a8 = rt(), b8 = rt(), zero = new T.Vector2(), sz = new T.Vector2(); let fb = null, lag = 0, fade = 1;
+      const VS = 'varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}';
+      const mat = (fs, u, o) => new T.ShaderMaterial(Object.assign({ vertexShader: VS, fragmentShader: fs, uniforms: u, depthTest: false, depthWrite: false, blending: T.NoBlending }, o));
+      const mCut = mat('uniform sampler2D t;uniform vec2 px;varying vec2 vUv;void main(){vec3 c=(texture2D(t,vUv+px*vec2(-1.,-1.)).rgb+texture2D(t,vUv+px*vec2(1.,-1.)).rgb+texture2D(t,vUv+px*vec2(-1.,1.)).rgb+texture2D(t,vUv+px).rgb)*.25;float l=max(c.r,max(c.g,c.b));gl_FragColor=vec4(c*smoothstep(.62,.98,l),1.);}', { t: { value: null }, px: { value: new T.Vector2() } });
+      const mBlur = mat('uniform sampler2D t;uniform vec2 d;varying vec2 vUv;void main(){vec3 c=texture2D(t,vUv).rgb*.227027;c+=(texture2D(t,vUv+d*1.384615).rgb+texture2D(t,vUv-d*1.384615).rgb)*.316216;c+=(texture2D(t,vUv+d*3.230769).rgb+texture2D(t,vUv-d*3.230769).rgb)*.07027;gl_FragColor=vec4(c,1.);}', { t: { value: null }, d: { value: new T.Vector2() } });
+      const mAdd = mat('uniform sampler2D a;uniform sampler2D b;uniform float k;varying vec2 vUv;void main(){vec3 g=(texture2D(a,vUv).rgb*.55+texture2D(b,vUv).rgb*.85)*k;gl_FragColor=vec4(g,max(g.r,max(g.g,g.b)));}', { a: { value: a4.texture }, b: { value: a8.texture }, k: { value: 1 } },
+        { blending: T.CustomBlending, blendEquation: T.AddEquation, blendSrc: T.OneFactor, blendDst: T.OneFactor, transparent: true });
+      const pass = (m, target) => { quad.material = m; R.setRenderTarget(target); R.render(sc2, cam2); };
+      const blur = (src, tmp, dst, sx, sy) => { mBlur.uniforms.t.value = src.texture; mBlur.uniforms.d.value.set(sx / src.width, 0); pass(mBlur, tmp); mBlur.uniforms.t.value = tmp.texture; mBlur.uniforms.d.value.set(0, sy / tmp.height); pass(mBlur, dst); };
+      return { on: true, k: 1,
+        size(){ R.getDrawingBufferSize(sz); const w = Math.max(8, sz.x), h = Math.max(8, sz.y); if (fb) fb.dispose(); fb = new T.DataTexture(null, w, h, T.RGBAFormat); fb.minFilter = fb.magFilter = T.LinearFilter;
+          mCut.uniforms.px.value.set(1 / w, 1 / h); a4.setSize(w >> 2, h >> 2); b4.setSize(w >> 2, h >> 2); a8.setSize(w >> 3, h >> 3); b8.setSize(w >> 3, h >> 3); },
+        run(){ if (!fb) this.size();
+          R.copyFramebufferToTexture(zero, fb); mCut.uniforms.t.value = fb; pass(mCut, a4);
+          blur(a4, b4, a4, 1, 1); blur(a4, b8, a8, 2, 1); blur(a8, b8, a8, 1.6, 1.6);
+          mAdd.uniforms.k.value = this.k * fade; R.autoClear = false; pass(mAdd, null); R.autoClear = true; },
+        pace(dt){ // only phones: two seconds below 25 frames a second, and the glow fades out for good
+          if (!TOUCH || !this.on) return; if (fade < 1){ fade -= dt * 2.5; if (fade <= 0) this.on = false; return; }
+          lag = dt > .04 ? lag + dt : Math.max(0, lag - dt); if (lag > 2) fade = .99; } };
+    } catch (e) { return none; }
+  })();
+  // on a desk the camera leans a little toward the pointer, so the scene feels like an object and not a picture
+  let ptx = 0, pty = 0, plx = 0, ply = 0, aiK = 0;
+  if (!TOUCH && !RM) addEventListener('pointermove', e => { ptx = e.clientX / innerWidth * 2 - 1; pty = e.clientY / innerHeight * 2 - 1; }, { passive: true });
   let W = 1, H = 1, narrow = false, tt = 0, yaw = 0, SH = ST.map(s => s.shot);
   const NS = 11, cur = ST[0].shot.slice(); cur[2] = 15; cur[0] = 62; // start far away and glide in
   const tgt = cur.slice(), v3 = new T.Vector3(), rt = new T.Vector3(), up = new T.Vector3(), ctr = new T.Vector3(), shade = $('#shade');
@@ -1773,7 +1874,8 @@ function makeStage(){
   const proj = (x, y, z) => { v3.set(x, y, z).project(cam); return [(v3.x * .5 + .5) * W, (-v3.y * .5 + .5) * H]; };
   const projO = o => { o.getWorldPosition(v3); return proj(v3.x, v3.y, v3.z); };
   function poseRig(r, ex, stand, twinX, vis, sc, inp, dt, paused, hlW, hl){
-    r.root.visible = vis > .02; r.stand.visible = vis > .02 && stand > .02; r.x = twinX; r.s = Math.max(.001, vis * sc); if (!r.root.visible) return;
+    r.root.visible = vis > .02; r.stand.visible = vis > .02 && stand > .02; r.x = twinX; r.s = Math.max(.001, vis * sc); r.ring.visible = r.root.visible; if (!r.root.visible) return;
+    r.ring.position.x = twinX; r.ring.scale.setScalar(r.s);
     const bob = (RM || paused) ? 0 : Math.sin(tt * 1.3) * .07;
     r.y = (1 - stand) * (.6 + bob + ex * .35) - 2.6 * (1 - sc) * stand;
     r.root.position.set(twinX, r.y, 0); r.root.scale.setScalar(r.s); r.stand.position.x = twinX; r.stand.scale.set(r.s, Math.max(.001, stand * r.s), r.s);
@@ -1789,7 +1891,7 @@ function makeStage(){
   }
   return {
     flat: false, snap: false, hl: -1, live: false, rig: [A, B], proj, k: [0, 0, 0, 0],
-    resize(){ W = cv.clientWidth || innerWidth; H = cv.clientHeight || innerHeight; R.setSize(W, H, false); cam.aspect = W / H; cam.updateProjectionMatrix(); narrow = W < 860;
+    resize(){ W = cv.clientWidth || innerWidth; H = cv.clientHeight || innerHeight; R.setSize(W, H, false); cam.aspect = W / H; cam.updateProjectionMatrix(); narrow = W < 860; if (post.on) post.size();
       // keep each rig, and what is drawn around it, inside the part of the screen the text leaves free
       const colEl = $('#s1 .col'), cw = colEl ? colEl.getBoundingClientRect().width : W * .4, free = clamp(1 - (cw + 40) / W, .3, .75), k = 2 * Math.tan(cam.fov * Math.PI / 360) * cam.aspect;
       SH = ST.map(s => { const sh = s.shot.slice(); if (!narrow && s.need){ sh[3] = free / 2 - .5; sh[2] = Math.max(sh[2], s.need / (free * k)); } return sh; }); },
@@ -1814,7 +1916,11 @@ function makeStage(){
       const sc = 1 - (1 - SWL.s) * swp; // on the way to the field the hero drone shrinks into one of the many
       poseRig(A, ex, stand, -1.95 * twin, swp > .93 ? 0 : 1, sc, inA, dt, paused, this.k[1], this.hl); A.root.rotation.y = yaw;
       poseRig(B, 0, stand, 1.95 * twin, twin, sc, inB, dt, paused, 0, -1);
-      ctr.set(0, .62 + ex * .5 + (1 - stand) * .5 - 1.9 * swp, 0); const ar = az * Math.PI / 180, er = el * Math.PI / 180;
+      const kp = 1 - Math.exp(-dt * 2.6); plx += (ptx - plx) * kp; ply += (pty - ply) * kp;
+      ctr.set(0, .62 + ex * .5 + (1 - stand) * .5 - 1.9 * swp, 0); const ar = (az + plx * 3.2) * Math.PI / 180, er = (el - ply * 1.5) * Math.PI / 180;
+      aiK += ((st === 5 || st === 6 ? 1 : 0) - aiK) * (1 - Math.exp(-dt * 2)); rim.color.copy(cRim).lerp(cRimAI, aiK * .7); warm.color.copy(cWarm).lerp(cWarmAI, aiK);
+      if (!paused && !RM){ dust[0].rotation.y = tt * .017; dust[1].rotation.y = -tt * .011; dust[0].position.y = Math.sin(tt * .13) * .3; dust[1].position.y = Math.cos(tt * .09) * .3; }
+      dustM.opacity = .42 * (1 - swp); ringM.opacity = .22 * (1 - swp) * (1 - .6 * ex); warm.intensity = (narrow ? .55 : .95) * (1 - .85 * swp);
       cam.position.set(ctr.x + dist * Math.sin(ar) * Math.cos(er), ctr.y + dist * Math.sin(er), ctr.z + dist * Math.cos(ar) * Math.cos(er)); cam.lookAt(ctr); cam.updateMatrixWorld();
       const hh = 2 * dist * Math.tan(cam.fov * Math.PI / 360), e = cam.matrixWorld.elements; rt.set(e[0], e[1], e[2]); up.set(e[4], e[5], e[6]);
       cam.position.addScaledVector(rt, -ox * hh * cam.aspect).addScaledVector(up, -oy * hh); cam.updateMatrixWorld();
@@ -1826,15 +1932,15 @@ function makeStage(){
         for (let i = 0; i < SWN; i++){
           vth[i] += (p.th[i] - vth[i]) * kt; const q = -vth[i] * Math.PI / 180, c = Math.cos(q) * s, sn = Math.sin(q) * s, o = i * 16;
           Mx[o] = c; Mx[o + 1] = sn; Mx[o + 4] = -sn; Mx[o + 5] = c; Mx[o + 10] = s; Mx[o + 12] = swPos.px[i]; Mx[o + 13] = PIV; Mx[o + 14] = swPos.pz[i]; Mx[o + 15] = 1;
-          let br = .82, bg = .83, bb = .87, dr = .1, dg = .78, db = .36;
-          if (idle){ dr = dg = db = .2; } else if (!p.alive[i]){ br = .34; bg = .09; bb = .08; dr = 1; dg = .13; db = .09; } else if (sel && p.elite[i]){ br = bg = bb = 1.3; dr = dg = db = 1; }
+          let br = .36, bg = .38, bb = .43, dr = .1, dg = .78, db = .36;
+          if (idle){ dr = .16; dg = .17; db = .2; } else if (!p.alive[i]){ br = .34; bg = .09; bb = .08; dr = 1; dg = .13; db = .09; } else if (sel && p.elite[i]){ br = bg = bb = 1.3; dr = dg = db = 1; }
           const j = i * 3; cb[j] += (br - cb[j]) * kc; cb[j + 1] += (bg - cb[j + 1]) * kc; cb[j + 2] += (bb - cb[j + 2]) * kc; cd[j] += (dr - cd[j]) * kc; cd[j + 1] += (dg - cd[j + 1]) * kc; cd[j + 2] += (db - cd[j + 2]) * kc;
         }
         iBody.instanceMatrix.needsUpdate = true; iBody.instanceColor.needsUpdate = true; iDisc.instanceColor.needsUpdate = true;
         const op = clamp((swp - .2) / .6, 0, 1); mBody.opacity = op; mStand.opacity = op; mDisc.opacity = .62 * op;
       }
       shade.style.opacity = fmt(dim, 3);
-      if (dim < .95 || !this.drewDim){ R.render(scene, cam); this.drewDim = dim >= .95; }
+      if (dim < .95 || !this.drewDim){ R.setRenderTarget(null); R.render(scene, cam); if (post.on){ post.k = 1 - .35 * swp; post.run(); if (dim < .95) post.pace(dt); } this.drewDim = dim >= .95; }
     },
   };
 }
@@ -1949,6 +2055,7 @@ function go(i, instant){ measure(); if (instant) stage.snap = true;
 $('#brand').addEventListener('click', e => go(0, e.detail === 0));
 function setActive(st){
   active = st; secs.forEach((s, i) => s.classList.toggle('on', i === st)); navSeg.set(st, RM); app.classList.toggle('nostage', ST[st].shot[8] > .5);
+  app.dataset.th = st === 5 || st === 6 ? 'ai' : ''; app.dataset.amb = ['', '', '', '', 'nn', '', '', 'hw', 'duo', 'duo'][st];
   docks.forEach((d, i) => { if (!d) return; d.classList.toggle('on', i === st); d.inert = i !== st; });
   { const f = document.activeElement; if (f && f.closest && f.closest('.docks, #quiz')) f.blur(); }
   setTune(false); if (keysPop && keysPop.classList.contains('on')) keysPaint(); $('#noteSay').textContent = ST[st].say; $('#noteDo').textContent = ST[st].act; clockPaint();
@@ -2100,6 +2207,10 @@ function frame(now){
   fx.draw(f, st, dt);
   requestAnimationFrame(frame);
 }
+// a trace of film grain: one small tile of noise, made once and laid over the page. It never changes, so it is never redrawn
+if (!TOUCH){ const c = document.createElement('canvas'), g = c.getContext('2d'); c.width = c.height = 180; const im = g.createImageData(180, 180), d = im.data, r = mulberry32(99);
+  for (let i = 0; i < d.length; i += 4){ const v = r() < .5 ? 0 : 255; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = r() * (v ? 6 : 11); }
+  g.putImageData(im, 0, 0); const el = document.createElement('div'); el.className = 'grain'; el.setAttribute('aria-hidden', 'true'); el.style.backgroundImage = `url(${c.toDataURL()})`; app.appendChild(el); }
 // initial state
 presetSeg.set(0, true); applyPreset('p'); nn.set(0); sw.init(); showQ(); gs.ui(); hw.build(); lp.gust(); lp.meas = lp.s.th; lp.text(); resizeAll();
 for (let i = 0; i < 480; i++){ lab.step(); ch.step(); ad.step(); } // two seconds of history so the charts are not empty at rest
